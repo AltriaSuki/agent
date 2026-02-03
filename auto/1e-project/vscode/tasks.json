@@ -1,0 +1,77 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "🔍 快速检查",
+      "type": "shell",
+      "command": "make quick-check",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "✅ 完整检查",
+      "type": "shell",
+      "command": "make check",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "🧪 运行测试",
+      "type": "shell",
+      "command": "cargo test",
+      "problemMatcher": ["$rustc"],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "👀 监听测试",
+      "type": "shell",
+      "command": "make watch",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "🚀 运行开发服务器",
+      "type": "shell",
+      "command": "make dev",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "🔧 自动修复",
+      "type": "shell",
+      "command": "make fix",
+      "problemMatcher": []
+    },
+    {
+      "label": "📱 构建 Android",
+      "type": "shell",
+      "command": "make android",
+      "problemMatcher": []
+    },
+    {
+      "label": "📦 构建 APK",
+      "type": "shell",
+      "command": "make apk",
+      "problemMatcher": []
+    },
+    {
+      "label": "🔒 安全审计",
+      "type": "shell",
+      "command": "make audit",
+      "problemMatcher": []
+    }
+  ]
+}

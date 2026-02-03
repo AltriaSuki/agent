@@ -1,0 +1,69 @@
+#!/bin/bash
+# 自动化代码检查 - 在 commit 前运行
+
+set -e
+
+echo "🔍 运行自动化检查..."
+
+# 1. Rust 格式化检查
+echo "📝 检查 Rust 代码格式..."
+cargo fmt --all -- --check || {
+    echo "❌ 代码格式不规范，正在自动修复..."
+    cargo fmt --all
+    echo "✅ 已自动格式化，请重新 add 文件"
+    exit 1
+}
+
+# 2. Clippy 代码质量检查
+echo "🔎 运行 Clippy 代码检查..."
+cargo clippy --all-targets --all-features -- \
+    -D warnings \
+    -W clippy::all \
+    -W clippy::pedantic \
+    -A clippy::missing_errors_doc \
+    -A clippy::missing_panics_doc || {
+    echo "❌ Clippy 发现问题，请修复后再提交"
+    exit 1
+}
+
+# 3. 运行测试
+echo "🧪 运行单元测试..."
+cargo test --quiet || {
+    echo "❌ 测试失败，请修复后再提交"
+    exit 1
+}
+
+# 4. 检查前端代码（如果有修改）
+if git diff --cached --name-only | grep -q "^static/.*\.js$"; then
+    echo "🌐 检查前端代码..."
+
+    # 检查 JavaScript 语法错误
+    for file in $(git diff --cached --name-only | grep "\.js$"); do
+        if [ -f "$file" ]; then
+            node -c "$file" || {
+                echo "❌ JavaScript 语法错误: $file"
+                exit 1
+            }
+        fi
+    done
+fi
+
+# 5. 检查是否有 TODO 或 FIXME（警告，不阻止提交）
+echo "📋 检查待办事项..."
+git diff --cached | grep -E "^\+.*TODO|^\+.*FIXME" && {
+    echo "⚠️  警告: 提交中包含 TODO/FIXME"
+} || true
+
+# 6. 检查敏感信息
+echo "🔒 检查敏感信息..."
+git diff --cached | grep -iE "password|secret|api_key|token" && {
+    echo "❌ 警告: 可能包含敏感信息！"
+    echo "请确认这些不是真实的密钥"
+    read -p "确定要继续吗？(y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+} || true
+
+echo "✅ 所有检查通过！"

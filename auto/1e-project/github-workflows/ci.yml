@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # 代码检查
+  check:
+    name: 代码质量检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: 缓存依赖
+        uses: Swatinem/rust-cache@v2
+
+      - name: 检查格式
+        run: cargo fmt --all -- --check
+
+      - name: Clippy 检查
+        run: |
+          cargo clippy --all-targets --all-features -- \
+            -D warnings \
+            -W clippy::all \
+            -W clippy::pedantic \
+            -A clippy::missing_errors_doc \
+            -A clippy::missing_panics_doc
+
+  # 运行测试
+  test:
+    name: 测试 (Rust ${{ matrix.rust }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        rust: [stable]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Rust ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - name: 缓存依赖
+        uses: Swatinem/rust-cache@v2
+
+      - name: 编译
+        run: cargo build --verbose
+
+      - name: 运行测试
+        run: cargo test --verbose
+
+      - name: 运行文档测试
+        run: cargo test --doc
+
+  # 代码覆盖率
+  coverage:
+    name: 代码覆盖率
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 安装 tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: 生成覆盖率报告
+        run: cargo tarpaulin --out Xml --output-dir coverage
+
+      - name: 上传到 Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/cobertura.xml
+          fail_ci_if_error: false
+
+  # 安全审计
+  audit:
+    name: 安全审计
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 缓存 cargo-audit
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: ${{ runner.os }}-cargo-audit
+
+      - name: 安装 cargo-audit
+        run: cargo install cargo-audit || true
+
+      - name: 运行安全审计
+        run: cargo audit
+
+  # Android 构建测试
+  android-build:
+    name: Android 构建
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 添加 Android targets
+        run: |
+          rustup target add aarch64-linux-android
+          rustup target add armv7-linux-androideabi
+
+      - name: 安装 Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+
+      - name: 构建 Android 库
+        run: |
+          cargo build --target aarch64-linux-android --lib
+          cargo build --target armv7-linux-androideabi --lib
+
+  # 性能基准测试（可选，仅在特定分支运行）
+  benchmark:
+    name: 性能基准测试
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 运行基准测试
+        run: cargo bench --no-fail-fast
+
+      - name: 保存基准测试结果
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-results
+          path: target/criterion/

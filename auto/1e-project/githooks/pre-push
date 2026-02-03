@@ -1,0 +1,35 @@
+#!/bin/bash
+# Push 前的最后检查
+
+set -e
+
+echo "🚀 准备 push，运行最后检查..."
+
+# 1. 运行完整测试套件
+echo "🧪 运行完整测试..."
+cargo test --release || {
+    echo "❌ 测试失败"
+    exit 1
+}
+
+# 2. 检查是否有未提交的更改
+if ! git diff-index --quiet HEAD --; then
+    echo "⚠️  警告: 有未提交的更改"
+    git status --short
+    read -p "确定要 push 吗？(y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
+# 3. 运行系统测试（如果存在）
+if [ -f "scripts/system_test.sh" ]; then
+    echo "🔧 运行系统测试..."
+    bash scripts/system_test.sh || {
+        echo "❌ 系统测试失败"
+        exit 1
+    }
+fi
+
+echo "✅ 可以安全 push！"

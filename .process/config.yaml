@@ -1,4 +1,10 @@
 ai:
-  provider: auto
+  provider: claude
+  claude:
+    api_key: "sk-suH80nnkcsK76DgtgVvcWOnb11T2n3QcTPoj4VFAZf00SOxW"
+    model: "claude-sonnet-4-5-20250929"
+    base_url: "https://hone.vvvv.ee"
+    max_tokens: 8192
 settings:
   auto_save: true
+  timeout_secs: 120

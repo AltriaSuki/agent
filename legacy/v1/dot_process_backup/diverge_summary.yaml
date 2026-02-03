@@ -1,0 +1,142 @@
+```yaml
+proposals:
+  - name: "方案A：钩子式验证 + 静态依赖图"
+    summary: "通过 Git hooks 触发验证，用静态配置文件描述分支依赖关系"
+    architecture: |
+      1. 新增 .process/invariants.d/ 目录，存放可执行的验证脚本
+      2. 新增 .process/branch-deps.txt 配置文件，格式：child_branch -> parent_branch
+      3. branch-gate 命令在切换前自动执行：
+         - 遍历 invariants.d/ 下所有脚本
+         - 任一脚本返回非0则阻止切换
+         - 输出失败原因到 stderr
+      4. branch-list 命令增强：
+         - 解析 branch-deps.txt 构建依赖图
+         - 使用拓扑排序计算优先级
+         - 输出格式：[优先级] 分支名 <- 依赖分支列表
+      5. 新增 check-invariants 独立命令供手动调用
+      6. 所有命令通过 getopts 实现 --help/-h 参数
+    tradeoffs:
+      - "优势：实现简单，配置文件易于人工编辑和版本控制"
+      - "优势：验证脚本可复用现有工具（shellcheck、测试脚本等）"
+      - "劣势：依赖关系需手动维护，可能与实际 Git 历史不一致"
+      - "劣势：静态配置无法自动检测循环依赖"
+    risks:
+      - "最大风险：branch-deps.txt 过期导致错误的优先级排序"
+      - "次要风险：invariants.d/ 脚本执行时间过长阻塞工作流"
+      - "次要风险：拓扑排序算法在纯 bash 中实现复杂度较高"
+    constraint_alignment:
+      "必须保持纯bash实现": "pass - 所有逻辑用 bash + 标准 Unix 工具（awk/sort）"
+      "所有新命令必须有 --help 说明": "pass - 通过 getopts 统一处理"
+      "不做 GUI 界面": "pass - 纯命令行输出"
+      "不集成特定 CI/CD 平台": "pass - 本地执行，无外部依赖"
+
+  - name: "方案B：动态分析 + 交互式可视化"
+    summary: "实时解析 Git 历史推断依赖，用 ASCII 图表在终端可视化"
+    architecture: |
+      1. branch-list --graph 新增图形模式：
+         - 执行 git log --all --graph --oneline --decorate
+         - 用 awk 解析输出，提取分支间的 merge 关系
+         - 构建内存中的依赖图（关联数组）
+         - 用 ASCII 字符（│ ├ └ ─）绘制树状图
+      2. branch-gate --strict 模式：
+         - 调用 check-invariants --auto 子命令
+         - check-invariants 扫描项目根目录下的 .invariant 文件
+         - .invariant 文件格式：每行一个 bash 表达式，支持 $BRANCH 变量
+         - 并行执行所有检查（后台任务 + wait）
+      3. 优先级计算：
+         - 基于分支的 commit 时间戳（最近活跃优先）
+         - 基于未合并 commit 数量（工作量大优先）
+         - 加权求和得出综合优先级
+      4. 新增 branch-deps --validate 命令检测循环依赖
+    tradeoffs:
+      - "优势：无需手动维护配置，依赖关系始终与 Git 历史同步"
+      - "优势：ASCII 图表直观，适合终端环境"
+      - "劣势：Git 历史复杂时解析性能较差"
+      - "劣势：merge 关系不等于逻辑依赖，可能产生误导"
+    risks:
+      - "最大风险：复杂 Git 历史（如 octopus merge）导致解析错误"
+      - "次要风险：ASCII 图表在宽分支树时超出终端宽度"
+      - "次要风险：并行执行 invariants 可能导致资源竞争"
+    constraint_alignment:
+      "必须保持纯bash实现": "pass - 使用 git/awk/bash 内置功能"
+      "所有新命令必须有 --help 说明": "pass - 每个子命令独立 help"
+      "不做 GUI 界面": "pass - ASCII 图表属于 TUI"
+      "不集成特定 CI/CD 平台": "pass - 本地工具"
+
+  - name: "方案C：声明式规则引擎 + 增量验证"
+    summary: "用 DSL 定义 invariants 和依赖规则，仅验证变更部分"
+    architecture: |
+      1. 新增 .process/rules.conf 配置文件，DSL 语法：
+         - INVARIANT <name> WHEN <condition> RUN <command>
+         - DEPENDS <branch_pattern> ON <branch_pattern>
+         - 示例：INVARIANT "tests" WHEN "*.sh" RUN "shellcheck *.sh"
+      2. 新增 process-engine 核心解析器：
+         - 读取 rules.conf 并构建规则树
+         - 使用 case 语句匹配 DSL 关键字
+         - 存储规则到关联数组（bash 4.0+）
+      3. branch-gate 集成：
+         - 对比 HEAD 和目标分支的 diff（git diff --name-only）
+         - 仅执行匹配变更文件的 INVARIANT 规则
+         - 缓存验证结果到 .process/cache/<commit-hash>
+      4. branch-list --deps 模式：
+         - 解析 DEPENDS 规则生成依赖矩阵
+         - 用 Warshall 算法计算传递闭包
+         - 输出格式：分支名 [直接依赖] [间接依赖]
+      5. 新增 process-validate 命令验证 rules.conf 语法
+    tradeoffs:
+      - "优势：增量验证大幅提升性能，适合大型项目"
+      - "优势：DSL 表达力强，可扩展性好"
+      - "优势：缓存机制避免重复计算"
+      - "劣势：DSL 解析器实现复杂，维护成本高"
+      - "劣势：需要 bash 4.0+ 的关联数组特性"
+    risks:
+      - "最大风险：DSL 语法设计不当导致用户学习曲线陡峭"
+      - "次要风险：缓存失效策略不当导致使用过期结果"
+      - "次要风险：Warshall 算法在纯 bash 中性能瓶颈"
+    constraint_alignment:
+      "必须保持纯bash实现": "partial - 需要 bash 4.0+，部分系统默认 bash 3.x"
+      "所有新命令必须有 --help 说明": "pass - 统一帮助系统"
+      "不做 GUI 界面": "pass - 纯文本配置和输出"
+      "不集成特定 CI/CD 平台": "pass - 通用规则引擎"
+
+comparison_dimensions:
+  - dimension: "实现复杂度"
+    ranking: ["A", "B", "C"]
+    notes: "A 最简单（静态配置），C 最复杂（DSL 引擎）"
+  
+  - dimension: "维护成本"
+    ranking: ["B", "A", "C"]
+    notes: "B 自动同步 Git 历史无需手动维护，A 需维护配置文件，C 需维护 DSL 解析器"
+  
+  - dimension: "性能表现"
+    ranking: ["C", "A", "B"]
+    notes: "C 增量验证+缓存最快，B 每次解析 Git 历史最慢"
+  
+  - dimension: "可扩展性"
+    ranking: ["C", "A", "B"]
+    notes: "C 的 DSL 可轻松添加新规则类型，B 受限于 Git 数据结构"
+  
+  - dimension: "用户友好度"
+    ranking: ["A", "B", "C"]
+    notes: "A 配置文件直观，C 需要学习 DSL 语法"
+  
+  - dimension: "准确性"
+    ranking: ["A", "C", "B"]
+    notes: "A 人工维护最准确，B 依赖 Git 历史可能误判，C 取决于规则定义质量"
+  
+  - dimension: "兼容性"
+    ranking: ["A", "B", "C"]
+    notes: "A/B 兼容 bash 3.x+，C 需要 bash 4.0+ 的关联数组"
+  
+  - dimension: "可逆性匹配度"
+    ranking: ["A", "B", "C"]
+    notes: "在 high reversibility_budget 下，C 的实验性最强，A 最保守"
+
+recommended_approach: |
+  建议根据项目阶段选择：
+  - 快速验证阶段（当前）：选择方案A，2-3天可实现 MVP
+  - 稳定使用阶段：迁移到方案B，减少手动维护
+  - 规模化阶段：考虑方案C，但需评估 bash 4.0 兼容性
+  
+  混合策略：先实现 A 的 invariants.d/ 机制，再逐步添加 B 的动态依赖分析
+```

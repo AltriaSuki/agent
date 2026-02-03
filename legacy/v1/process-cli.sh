@@ -97,6 +97,456 @@ validate_yaml_fields() {
     return 0
 }
 
+# ---- AI Provider Layer ----
+# 支持多供应商: claude, openai, ollama, manual
+# 配置文件: .process/.ai_config 或环境变量
+
+AI_CONFIG_FILE="$PROCESS_DIR/.ai_config"
+AI_PROVIDER="${AI_PROVIDER:-auto}"  # auto | claude | openai | ollama | manual
+
+# 初始化 AI 配置
+init_ai_config() {
+    if [[ ! -f "$AI_CONFIG_FILE" ]]; then
+        cat > "$AI_CONFIG_FILE" << 'AI_CONFIG'
+# AI Provider 配置
+# provider: auto | claude | openai | ollama | manual
+provider: auto
+
+# Claude API (Anthropic)
+# 支持环境变量: ANTHROPIC_API_KEY, ANTHROPIC_MODEL, ANTHROPIC_BASE_URL
+claude:
+  api_key: ""           # 或设置环境变量 ANTHROPIC_API_KEY
+  model: ""             # 默认: claude-sonnet-4-20250514, 或 ANTHROPIC_MODEL
+  base_url: ""          # 默认: https://api.anthropic.com, 或 ANTHROPIC_BASE_URL
+  max_tokens: 4096
+
+# OpenAI API
+# 支持环境变量: OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL
+openai:
+  api_key: ""           # 或设置环境变量 OPENAI_API_KEY
+  model: ""             # 默认: gpt-4o, 或 OPENAI_MODEL
+  base_url: ""          # 默认: https://api.openai.com, 或 OPENAI_BASE_URL
+  max_tokens: 4096
+
+# Ollama (本地)
+ollama:
+  model: "llama3"
+  endpoint: "http://localhost:11434"
+
+# 其他设置
+settings:
+  auto_save: true        # 自动保存 AI 输出到对应文件
+  show_prompt: false     # 是否显示完整 prompt
+  timeout: 120           # API 调用超时（秒）
+AI_CONFIG
+        log_info "已创建 AI 配置文件: $AI_CONFIG_FILE"
+    fi
+}
+
+# 读取配置值
+get_ai_config() {
+    local key="$1"
+    local default="${2:-}"
+    if [[ -f "$AI_CONFIG_FILE" ]]; then
+        local value
+        # 提取值并去除引号和首尾空格
+        value=$(grep "^${key}:" "$AI_CONFIG_FILE" 2>/dev/null | head -1 | sed 's/^[^:]*://' | tr -d '"' | tr -d "'" | xargs || echo "")
+        if [[ -n "$value" ]]; then
+            echo "$value"
+            return
+        fi
+    fi
+    echo "$default"
+}
+
+# 读取嵌套配置值 (如 claude.api_key)
+# 用法: get_nested_config "section" "key" "default"
+get_nested_config() {
+    local section="$1"
+    local key="$2"
+    local default="${3:-}"
+    
+    if [[ ! -f "$AI_CONFIG_FILE" ]]; then
+        echo "$default"
+        return
+    fi
+    
+    # 找到 section 后面的 key
+    local in_section=false
+    local value=""
+    
+    while IFS= read -r line; do
+        # 检查是否进入目标 section
+        if [[ "$line" =~ ^${section}: ]]; then
+            in_section=true
+            continue
+        fi
+        
+        # 检查是否离开 section (遇到新的顶级 key)
+        if [[ "$in_section" == "true" && "$line" =~ ^[a-zA-Z] && ! "$line" =~ ^[[:space:]] ]]; then
+            break
+        fi
+        
+        # 在 section 内查找 key
+        if [[ "$in_section" == "true" && "$line" =~ ^[[:space:]]+${key}: ]]; then
+            value=$(echo "$line" | sed 's/^[^:]*://' | tr -d '"' | tr -d "'" | sed 's/#.*//' | xargs)
+            break
+        fi
+    done < "$AI_CONFIG_FILE"
+    
+    if [[ -n "$value" ]]; then
+        echo "$value"
+    else
+        echo "$default"
+    fi
+}
+
+# 检测可用的 AI Provider
+detect_ai_provider() {
+    local configured
+    configured=$(get_ai_config "provider" "auto")
+    
+    if [[ "$configured" != "auto" ]]; then
+        echo "$configured"
+        return
+    fi
+    
+    # 自动检测顺序: claude > openai > ollama > manual
+    
+    # 1. 检测 Claude CLI 或 API Key
+    if command -v claude &> /dev/null; then
+        echo "claude-cli"
+        return
+    fi
+    if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+        echo "claude"
+        return
+    fi
+    
+    # 2. 检测 OpenAI
+    if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+        echo "openai"
+        return
+    fi
+    
+    # 3. 检测 Ollama
+    if command -v ollama &> /dev/null && curl -s "http://localhost:11434/api/tags" &> /dev/null; then
+        echo "ollama"
+        return
+    fi
+    
+    # 4. Fallback 到手动模式
+    echo "manual"
+}
+
+# 清理 AI 输出（去除 markdown 代码块标记等）
+clean_ai_output() {
+    local content="$1"
+    # 使用兼容 macOS 和 Linux 的方式清理
+    # 去除开头的 ```yaml 或 ``` 行
+    content=$(echo "$content" | grep -v '^```[a-z]*$' | grep -v '^```$')
+    # 去除可能的空行开头
+    content=$(echo "$content" | awk 'NF{found=1} found')
+    echo "$content"
+}
+
+# 调用 AI API（带清理和重试）
+# 用法: call_ai "prompt" [output_file] [max_retries]
+call_ai() {
+    local prompt="$1"
+    local output_file="${2:-}"
+    local max_retries="${3:-2}"
+    local provider
+    provider=$(detect_ai_provider)
+    
+    log_info "使用 AI Provider: $provider"
+    
+    local attempt=1
+    local result
+    
+    while (( attempt <= max_retries )); do
+        if (( attempt > 1 )); then
+            log_warn "重试第 $attempt 次..."
+        fi
+        
+        case "$provider" in
+            claude-cli)
+                result=$(call_ai_provider_claude_cli "$prompt")
+                ;;
+            claude)
+                result=$(call_ai_provider_claude_api "$prompt")
+                ;;
+            openai)
+                result=$(call_ai_provider_openai "$prompt")
+                ;;
+            ollama)
+                result=$(call_ai_provider_ollama "$prompt")
+                ;;
+            manual)
+                call_ai_manual "$prompt" "$output_file"
+                return $?
+                ;;
+            *)
+                log_error "未知的 AI provider: $provider"
+                return 1
+                ;;
+        esac
+        
+        # 检查是否成功获取结果
+        if [[ -n "$result" ]]; then
+            # 清理输出
+            result=$(clean_ai_output "$result")
+            
+            # 保存到文件
+            if [[ -n "$output_file" ]]; then
+                echo "$result" > "$output_file"
+                log_ok "AI 输出已保存到: $output_file"
+            else
+                echo "$result"
+            fi
+            return 0
+        fi
+        
+        attempt=$((attempt + 1))
+    done
+    
+    log_error "AI 调用失败（已重试 $max_retries 次）"
+    return 1
+}
+
+# Claude CLI 调用（返回内容）
+call_ai_provider_claude_cli() {
+    local prompt="$1"
+    local model
+    model=$(get_nested_config "claude" "model" "claude-sonnet-4-20250514")
+    local max_tokens
+    max_tokens=$(get_nested_config "claude" "max_tokens" "8192")
+    
+    log_info "调用 Claude CLI (model: $model, max_tokens: $max_tokens)..." >&2
+    
+    local response
+    if response=$(echo "$prompt" | claude -m "$model" --max-tokens "$max_tokens" 2>&1); then
+        echo "$response"
+    else
+        log_error "Claude CLI 调用失败: $response" >&2
+        return 1
+    fi
+}
+
+# Claude API 直接调用（返回内容）
+# 支持环境变量: ANTHROPIC_API_KEY, ANTHROPIC_MODEL, ANTHROPIC_BASE_URL
+call_ai_provider_claude_api() {
+    local prompt="$1"
+    
+    # 优先级: 环境变量 > 配置文件 > 默认值
+    local api_key="${ANTHROPIC_API_KEY:-$(get_nested_config "claude" "api_key")}"
+    local model="${ANTHROPIC_MODEL:-$(get_nested_config "claude" "model" "claude-sonnet-4-20250514")}"
+    local base_url="${ANTHROPIC_BASE_URL:-$(get_nested_config "claude" "base_url" "https://api.anthropic.com")}"
+    local max_tokens
+    max_tokens=$(get_nested_config "claude" "max_tokens" "8192")
+    
+    if [[ -z "$api_key" ]]; then
+        log_error "未设置 ANTHROPIC_API_KEY" >&2
+        return 1
+    fi
+    
+    # 确保 base_url 没有尾部斜杠
+    base_url="${base_url%/}"
+    
+    # 日志输出到 stderr，避免污染返回内容
+    log_info "调用 Claude API..." >&2
+    log_info "  Base URL: $base_url" >&2
+    log_info "  Model: $model" >&2
+    log_info "  Max Tokens: $max_tokens" >&2
+    
+    local escaped_prompt
+    escaped_prompt=$(echo "$prompt" | jq -Rs .)
+    
+    local response
+    response=$(curl -s --max-time 180 \
+        -H "Content-Type: application/json" \
+        -H "x-api-key: $api_key" \
+        -H "anthropic-version: 2023-06-01" \
+        -d "{
+            \"model\": \"$model\",
+            \"max_tokens\": $max_tokens,
+            \"messages\": [{\"role\": \"user\", \"content\": $escaped_prompt}]
+        }" \
+        "${base_url}/v1/messages" 2>&1)
+    
+    # 解析响应
+    local content
+    content=$(echo "$response" | jq -r '.content[0].text // empty' 2>/dev/null)
+    
+    if [[ -n "$content" ]]; then
+        echo "$content"
+    else
+        local error
+        error=$(echo "$response" | jq -r '.error.message // empty' 2>/dev/null)
+        log_error "Claude API 调用失败: ${error:-$response}" >&2
+        return 1
+    fi
+}
+
+# OpenAI API 调用（返回内容）
+# 支持环境变量: OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL
+call_ai_provider_openai() {
+    local prompt="$1"
+    
+    # 优先级: 环境变量 > 配置文件 > 默认值
+    local api_key="${OPENAI_API_KEY:-$(get_nested_config "openai" "api_key")}"
+    local model="${OPENAI_MODEL:-$(get_nested_config "openai" "model" "gpt-4o")}"
+    local base_url="${OPENAI_BASE_URL:-$(get_nested_config "openai" "base_url" "https://api.openai.com")}"
+    local max_tokens
+    max_tokens=$(get_nested_config "openai" "max_tokens" "8192")
+    
+    if [[ -z "$api_key" ]]; then
+        log_error "未设置 OPENAI_API_KEY" >&2
+        return 1
+    fi
+    
+    # 确保 base_url 没有尾部斜杠
+    base_url="${base_url%/}"
+    
+    # 日志输出到 stderr，避免污染返回内容
+    log_info "调用 OpenAI API..." >&2
+    log_info "  Base URL: $base_url" >&2
+    log_info "  Model: $model" >&2
+    log_info "  Max Tokens: $max_tokens" >&2
+    
+    local escaped_prompt
+    escaped_prompt=$(echo "$prompt" | jq -Rs .)
+    
+    local response
+    response=$(curl -s --max-time 180 \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $api_key" \
+        -d "{
+            \"model\": \"$model\",
+            \"max_tokens\": $max_tokens,
+            \"messages\": [{\"role\": \"user\", \"content\": $escaped_prompt}]
+        }" \
+        "${base_url}/v1/chat/completions" 2>&1)
+    
+    local content
+    content=$(echo "$response" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
+    
+    if [[ -n "$content" ]]; then
+        echo "$content"
+    else
+        local error
+        error=$(echo "$response" | jq -r '.error.message // empty' 2>/dev/null)
+        log_error "OpenAI API 调用失败: ${error:-$response}" >&2
+        return 1
+    fi
+}
+
+# Ollama 本地调用（返回内容）
+call_ai_provider_ollama() {
+    local prompt="$1"
+    local model
+    model=$(get_nested_config "ollama" "model" "llama3")
+    local endpoint
+    endpoint=$(get_nested_config "ollama" "endpoint" "http://localhost:11434")
+    
+    log_info "调用 Ollama (model: $model)..." >&2
+    
+    local escaped_prompt
+    escaped_prompt=$(echo "$prompt" | jq -Rs .)
+    
+    local response
+    response=$(curl -s --max-time 300 \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"model\": \"$model\",
+            \"prompt\": $escaped_prompt,
+            \"stream\": false
+        }" \
+        "${endpoint}/api/generate" 2>&1)
+    
+    local content
+    content=$(echo "$response" | jq -r '.response // empty' 2>/dev/null)
+    
+    if [[ -n "$content" ]]; then
+        echo "$content"
+    else
+        log_error "Ollama 调用失败: $response" >&2
+        return 1
+    fi
+}
+
+# 手动模式 (打印 prompt，等待用户操作)
+call_ai_manual() {
+    local prompt="$1"
+    local output_file="${2:-}"
+    
+    echo ""
+    echo -e "${CYAN}═══════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}  AI 任务 (手动模式)${NC}"
+    echo -e "${CYAN}═══════════════════════════════════════════════════${NC}"
+    echo ""
+    echo "$prompt"
+    echo ""
+    echo -e "${CYAN}═══════════════════════════════════════════════════${NC}"
+    echo ""
+    
+    if [[ -n "$output_file" ]]; then
+        log_info "请将 AI 输出保存到: $output_file"
+        log_info "完成后运行相应的 validate 命令"
+    fi
+    
+    # 尝试复制到剪贴板
+    if command -v pbcopy &> /dev/null; then
+        echo "$prompt" | pbcopy
+        log_ok "Prompt 已复制到剪贴板"
+    elif command -v xclip &> /dev/null; then
+        echo "$prompt" | xclip -selection clipboard
+        log_ok "Prompt 已复制到剪贴板"
+    fi
+    
+    return 0
+}
+
+# 设置 AI Provider
+cmd_ai_config() {
+    local subcmd="${1:-show}"
+    
+    case "$subcmd" in
+        show)
+            if [[ -f "$AI_CONFIG_FILE" ]]; then
+                log_phase "当前 AI 配置"
+                cat "$AI_CONFIG_FILE"
+                echo ""
+                log_info "检测到的 Provider: $(detect_ai_provider)"
+            else
+                log_warn "AI 配置文件不存在，运行 init 创建"
+            fi
+            ;;
+        set-provider)
+            local provider="${2:?用法: ai-config set-provider <claude|openai|ollama|manual|auto>}"
+            if [[ -f "$AI_CONFIG_FILE" ]]; then
+                sed -i.bak "s/^provider:.*/provider: $provider/" "$AI_CONFIG_FILE"
+                rm -f "${AI_CONFIG_FILE}.bak"
+                log_ok "AI Provider 已设置为: $provider"
+            else
+                log_error "请先运行 init"
+            fi
+            ;;
+        test)
+            log_phase "测试 AI 连接"
+            local test_prompt="请回复 'Hello, process-cli!' 来确认连接正常。"
+            if call_ai "$test_prompt"; then
+                log_ok "AI 连接测试成功"
+            else
+                log_error "AI 连接测试失败"
+            fi
+            ;;
+        *)
+            echo "用法: ai-config <show|set-provider|test> [args]"
+            ;;
+    esac
+}
+
 # ---- Commands ----
 
 cmd_init() {
@@ -161,8 +611,12 @@ EOF
 friction_points: []
 EOF
 
+    # 初始化 AI 配置
+    init_ai_config
+
     set_state "seed"
     log_info "项目已初始化。下一步: 编辑 $SEED_FILE 然后运行 seed-validate"
+    log_info "AI 配置: $AI_CONFIG_FILE (可选: 配置 API Key)" 
 }
 
 cmd_seed_validate() {
@@ -208,52 +662,55 @@ cmd_diverge() {
     local seed_content
     seed_content=$(cat "$SEED_FILE")
 
-    echo ""
-    log_info "将 seed 输入传递给 AI 进行发散探索..."
-    echo ""
-
-    # Generate the prompt for AI
-    cat << PROMPT_END
-
-═══════════════════════════════════════════════════
-  AI DIVERGE 任务
-═══════════════════════════════════════════════════
-
-请阅读以下 seed，然后生成 ≥2 个独立的方案。
+    # 构建 prompt
+    local prompt
+    prompt=$(cat << PROMPT_END
+你是一个软件架构师。请阅读以下项目 seed，然后生成 ≥2 个独立的技术方案。
 
 --- SEED ---
 $seed_content
 --- END SEED ---
 
 要求：
-1. 每个方案必须包含：架构草图、核心取舍、最大风险点
+1. 每个方案必须包含：架构草图（文字描述）、核心取舍、最大风险点
 2. 每个方案检查与每条 constraint 的对齐
 3. 方案之间要有实质差异（不同架构/技术/取舍方向）
 4. 最后生成比较表
 
-请将结果按以下 YAML 格式输出到 $DIVERGE_FILE:
+请只输出 YAML 格式，不要其他解释：
 
 proposals:
   - name: "方案A"
-    summary: "..."
-    architecture: "..."
-    tradeoffs: ["..."]
-    risks: ["..."]
+    summary: "一句话描述"
+    architecture: |
+      多行架构描述
+    tradeoffs:
+      - "取舍1"
+    risks:
+      - "风险1"
     constraint_alignment:
-      constraint_1: "pass | partial | fail"
+      约束1: "pass | partial | fail"
   - name: "方案B"
     ...
 comparison_dimensions:
-  - dimension: "复杂度"
+  - dimension: "维度名"
     ranking: ["A", "B"]
-  ...
-
-═══════════════════════════════════════════════════
+    notes: "说明"
 PROMPT_END
+)
 
-    set_state "diverge"
-    log_info "AI 完成发散后，请确认 $DIVERGE_FILE 已生成"
-    log_info "然后运行 './process-cli.sh diverge-validate' 验证"
+    log_info "调用 AI 进行发散探索..."
+    
+    # 调用 AI
+    if call_ai "$prompt" "$DIVERGE_FILE"; then
+        set_state "diverge"
+        log_ok "AI 发散完成"
+        log_info "运行 './process-cli.sh diverge-validate' 验证输出"
+    else
+        set_state "diverge"
+        log_warn "AI 调用未完成，请手动创建 $DIVERGE_FILE"
+        log_info "完成后运行 './process-cli.sh diverge-validate' 验证"
+    fi
 }
 
 cmd_diverge_validate() {
@@ -292,13 +749,9 @@ cmd_converge() {
     local seed_content
     seed_content=$(cat "$SEED_FILE")
 
-    cat << PROMPT_END
-
-═══════════════════════════════════════════════════
-  AI CONVERGE 任务
-═══════════════════════════════════════════════════
-
-请阅读 seed 和发散方案，与人类一起完成以下任务：
+    local prompt
+    prompt=$(cat << PROMPT_END
+你是一个软件架构师。请阅读 seed 和发散方案，完成以下任务：
 
 --- SEED ---
 $seed_content
@@ -309,29 +762,47 @@ $diverge_content
 --- END DIVERGE ---
 
 任务：
-1. 裁决：选择/混合方案，淘汰的方案写入 REJECTED_APPROACHES.md（含理由）
-2. 从选中方案中提取规则，写入 $RULES_FILE:
+1. 裁决：选择/混合方案，淘汰的方案要列出原因
+2. 从选中方案中提取规则
+
+请只输出 YAML 格式，不要其他解释：
 
 invariants:
   - id: "INV-001"
-    rule: "描述"
+    rule: "规则描述"
     rationale: "为什么"
     added_in_phase: 2
     frozen: false
+
 conventions:
   - id: "CONV-001"
-    rule: "描述"
+    rule: "约定描述"
     rationale: "为什么"
+
 conflict_resolution:
   policy: "human_final_say"
 
-3. 记录关键决策到 $DECISIONS_FILE
+rejected_approaches:
+  - name: "被淘汰的方案名"
+    reason: "淘汰原因"
 
-═══════════════════════════════════════════════════
+selected_approach:
+  name: "选中的方案名"
+  rationale: "选择原因"
 PROMPT_END
+)
 
-    set_state "converge"
-    log_info "完成后运行 './process-cli.sh converge-validate'"
+    log_info "调用 AI 进行方案收敛..."
+    
+    if call_ai "$prompt" "$RULES_FILE"; then
+        set_state "converge"
+        log_ok "AI 收敛完成"
+        log_info "运行 './process-cli.sh converge-validate' 验证输出"
+    else
+        set_state "converge"
+        log_warn "AI 调用未完成，请手动创建 $RULES_FILE"
+        log_info "完成后运行 './process-cli.sh converge-validate' 验证"
+    fi
 }
 
 cmd_converge_validate() {
@@ -371,13 +842,9 @@ cmd_skeleton() {
     local seed_content
     seed_content=$(cat "$SEED_FILE")
 
-    cat << PROMPT_END
-
-═══════════════════════════════════════════════════
-  AI SKELETON 任务
-═══════════════════════════════════════════════════
-
-基于 seed 和 rules，生成项目骨架。
+    local prompt
+    prompt=$(cat << PROMPT_END
+你是一个软件架构师。基于以下 seed 和 rules，生成项目骨架配置。
 
 --- SEED ---
 $seed_content
@@ -387,25 +854,46 @@ $seed_content
 $rules_content
 --- END RULES ---
 
-请生成：
-1. 项目目录结构
-2. 核心接口/类型定义（只有签名）
-3. $SKELETON_FILE 包含:
-   - directory_structure
-   - interfaces
-   - rollback_template
-   - verification_checklist
-4. 实际代码骨架文件
+请只输出 YAML 格式，不要其他解释：
 
-完成后：
-- git add 并 commit
-- git tag skeleton-v1
+directory_structure:
+  - path: "src/core/"
+    purpose: "核心业务逻辑"
+  - path: "src/commands/"
+    purpose: "命令实现"
 
-═══════════════════════════════════════════════════
+interfaces: |
+  # 核心函数签名（只有签名，不实现）
+  # function_name() { :; }  # 描述
+
+rollback_template: |
+  ## 回滚步骤
+  1. git revert <commit-range>
+  2. 验证: <具体验证命令>
+  3. 通知: <谁需要知道>
+
+verification_checklist:
+  - check: "所有 invariant 仍然成立"
+    automated: true
+    command: "make check-invariants"
+  - check: "无新的循环依赖"
+    automated: false
+    command: ""
 PROMPT_END
+)
 
-    set_state "skeleton"
-    log_info "完成后运行 './process-cli.sh skeleton-validate'"
+    log_info "调用 AI 生成项目骨架..."
+    
+    if call_ai "$prompt" "$SKELETON_FILE"; then
+        set_state "skeleton"
+        log_ok "AI 骨架生成完成"
+        log_info "运行 './process-cli.sh skeleton-validate' 验证输出"
+        log_info "然后执行: git add . && git commit -m 'skeleton' && git tag skeleton-v1"
+    else
+        set_state "skeleton"
+        log_warn "AI 调用未完成，请手动创建 $SKELETON_FILE"
+        log_info "完成后运行 './process-cli.sh skeleton-validate' 验证"
+    fi
 }
 
 cmd_skeleton_validate() {
@@ -529,6 +1017,7 @@ cmd_branch_review() {
     log_phase "Phase 4.3: 多角色审查"
     local branch_name="${1:?用法: branch-review <branch-name>}"
     local branch_file="$BRANCHES_DIR/${branch_name}.yaml"
+    local review_file="$BRANCHES_DIR/${branch_name}-review.yaml"
     require_file "$branch_file"
 
     local rules_content
@@ -540,13 +1029,9 @@ cmd_branch_review() {
     sed -i.bak 's/^status: "implementing"/status: "reviewing"/' "$branch_file"
     rm -f "${branch_file}.bak"
 
-    cat << PROMPT_END
-
-═══════════════════════════════════════════════════
-  AI MULTI-ROLE REVIEW: $branch_name
-═══════════════════════════════════════════════════
-
-请以以下 4 个角色分别审查本分支的代码变更：
+    local prompt
+    prompt=$(cat << PROMPT_END
+你是一个代码审查专家。请以 4 个角色分别审查本分支。
 
 --- RULES ---
 $rules_content
@@ -556,72 +1041,98 @@ $rules_content
 $branch_content
 --- END BRANCH DEF ---
 
-角色 1: 安全审计员
-  关注: 注入、越权、数据泄露、依赖安全
+角色 1: 安全审计员 - 关注注入、越权、数据泄露
+角色 2: 性能工程师 - 关注热路径、延迟、并发
+角色 3: 用户代言人 - 用户体验变好还是变差？
+角色 4: 维护者 - 6个月后能看懂吗？
 
-角色 2: 性能工程师
-  关注: 热路径、内存分配、延迟、并发安全
+请只输出 YAML 格式：
 
-角色 3: 用户代言人
-  关注: 这个改动让用户体验变好还是变差？
+reviews:
+  - role: "安全审计员"
+    verdict: "pass | conditional_pass | fail"
+    issues:
+      - severity: "high | medium | low"
+        description: "问题描述"
+        suggestion: "建议"
+  - role: "性能工程师"
+    verdict: "..."
+    issues: []
 
-角色 4: 维护者
-  关注: 6个月后能看懂吗？改起来容易吗？
+conflicts: []  # 角色间冲突，需要 NEEDS_HUMAN_DECISION
 
-每个角色输出:
-  role: "角色名"
-  verdict: "pass | conditional_pass | fail"
-  issues:
-    - severity: "high | medium | low"
-      description: "..."
-      suggestion: "..."
-
-如果角色间有冲突，按以下流程解决：
-1. 列出各方论点
-2. 用 invariants 做裁判
-3. invariants 也无法裁决时，标记为 NEEDS_HUMAN_DECISION
-
-═══════════════════════════════════════════════════
+overall_verdict: "pass | conditional_pass | fail"
 PROMPT_END
+)
 
-    log_info "审查完成后运行 './process-cli.sh branch-abuse $branch_name'"
+    log_info "调用 AI 进行多角色审查..."
+    
+    if call_ai "$prompt" "$review_file"; then
+        log_ok "AI 审查完成"
+        log_info "审查结果已保存到: $review_file"
+        log_info "下一步: './process-cli.sh branch-abuse $branch_name'"
+    else
+        log_warn "AI 调用未完成，请手动创建 $review_file"
+    fi
 }
 
 cmd_branch_abuse() {
     log_phase "Phase 4.4: 滥用测试"
     local branch_name="${1:?用法: branch-abuse <branch-name>}"
     local branch_file="$BRANCHES_DIR/${branch_name}.yaml"
+    local abuse_file="$BRANCHES_DIR/${branch_name}-abuse.yaml"
     require_file "$branch_file"
 
     sed -i.bak 's/^status: "reviewing"/status: "abuse-testing"/' "$branch_file"
     rm -f "${branch_file}.bak"
 
-    cat << PROMPT_END
+    local branch_content
+    branch_content=$(cat "$branch_file")
 
-═══════════════════════════════════════════════════
-  AI ABUSE TESTING: $branch_name
-═══════════════════════════════════════════════════
+    local prompt
+    prompt=$(cat << PROMPT_END
+你是一个安全测试专家。以"恶意用户"视角测试本分支的代码。
 
-以"恶意用户"视角测试本分支的代码：
+--- BRANCH DEF ---
+$branch_content
+--- END BRANCH DEF ---
 
+测试类别：
 1. 边界输入 — 空值、超长、特殊字符、类型错误
 2. 违反预期的操作序列 — 乱序调用、重复调用、并发调用
 3. 资源耗尽 — 大量数据、频繁请求、内存填充
 
-将结果写入: $BRANCHES_DIR/${branch_name}-abuse.yaml
+请只输出 YAML 格式：
 
-格式:
 abuse_tests:
   - category: "边界输入"
-    test: "描述"
+    test: "测试描述"
     result: "pass | fail"
     severity: "high | medium | low"
+    fix_suggestion: "修复建议"
+  - category: "操作序列"
+    test: "..."
+    result: "..."
+    severity: "..."
     fix_suggestion: "..."
 
-═══════════════════════════════════════════════════
+summary:
+  total_tests: N
+  passed: N
+  failed: N
+  high_severity_issues: N
 PROMPT_END
+)
 
-    log_info "完成后运行 './process-cli.sh branch-gate $branch_name'"
+    log_info "调用 AI 进行滥用测试..."
+    
+    if call_ai "$prompt" "$abuse_file"; then
+        log_ok "AI 滥用测试完成"
+        log_info "测试结果已保存到: $abuse_file"
+        log_info "下一步: './process-cli.sh branch-gate $branch_name'"
+    else
+        log_warn "AI 调用未完成，请手动创建 $abuse_file"
+    fi
 }
 
 cmd_branch_gate() {
@@ -778,45 +1289,77 @@ cmd_postmortem() {
     require_state "stabilize"
 
     # Gather all process artifacts
-    echo ""
     log_info "收集所有过程产物用于回顾..."
-    echo ""
 
-    cat << PROMPT_END
+    local learnings_content=""
+    local friction_content=""
+    local rules_content=""
+    
+    [[ -f "$LEARNINGS_FILE" ]] && learnings_content=$(cat "$LEARNINGS_FILE")
+    [[ -f "$FRICTION_FILE" ]] && friction_content=$(cat "$FRICTION_FILE")
+    [[ -f "$RULES_FILE" ]] && rules_content=$(cat "$RULES_FILE")
 
-═══════════════════════════════════════════════════
-  AI POSTMORTEM 任务
-═══════════════════════════════════════════════════
+    local prompt
+    prompt=$(cat << PROMPT_END
+你是一个项目复盘专家。请回顾本项目的所有过程产物，生成复盘报告。
 
-请回顾 .process/ 目录中的所有产物，生成 postmortem.yaml:
+--- LEARNINGS ---
+$learnings_content
+--- END LEARNINGS ---
+
+--- FRICTION ---
+$friction_content
+--- END FRICTION ---
+
+--- RULES ---
+$rules_content
+--- END RULES ---
+
+请只输出 YAML 格式：
 
 rules_that_should_exist_earlier:
-  - rule: "..."
-    current_phase_added: N
-    ideal_phase: M
+  - rule: "规则描述"
+    current_phase_added: 2
+    ideal_phase: 1
+    reason: "为什么应该更早添加"
 
 rejected_approaches_review:
-  - approach: "..."
-    original_rejection_reason: "..."
+  - approach: "方案名"
+    original_rejection_reason: "原因"
     retrospective_verdict: "rejection_correct | should_reconsider"
+    note: "补充说明"
 
 process_improvements:
-  - description: "..."
-    action: "update_process_spec"
+  - description: "改进描述"
+    priority: "high | medium | low"
+    action: "update_process_spec | add_template | improve_tooling"
 
 learnings_summary:
   - category: "技术 | 流程 | 协作"
-    lesson: "..."
+    lesson: "教训"
+    actionable: "可行动的建议"
 
-回流动作:
-- process_improvements 中的改进应用到 PROCESS.md 的下一版本
-- rules_that_should_exist_earlier 更新到 rules.yaml 模板
-
-═══════════════════════════════════════════════════
+metrics:
+  total_branches: N
+  merged_branches: N
+  rejected_branches: N
+  friction_points: N
+  high_severity_issues: N
 PROMPT_END
+)
 
-    set_state "postmortem"
-    log_info "完成后运行 './process-cli.sh done'"
+    log_info "调用 AI 生成复盘报告..."
+    
+    if call_ai "$prompt" "$POSTMORTEM_FILE"; then
+        set_state "postmortem"
+        log_ok "AI 复盘完成"
+        log_info "复盘报告已保存到: $POSTMORTEM_FILE"
+        log_info "下一步: './process-cli.sh done'"
+    else
+        set_state "postmortem"
+        log_warn "AI 调用未完成，请手动创建 $POSTMORTEM_FILE"
+        log_info "完成后运行 './process-cli.sh done'"
+    fi
 }
 
 cmd_done() {
@@ -931,6 +1474,18 @@ cmd_help() {
   status                  查看当前进度
   help                    显示此帮助
 
+AI 配置:
+  ai-config show          查看当前 AI 配置
+  ai-config set-provider <provider>  设置 AI 提供商
+  ai-config test          测试 AI 连接
+
+支持的 AI Provider:
+  auto     - 自动检测 (Claude CLI → Claude API → OpenAI → Ollama → 手动)
+  claude   - Anthropic Claude API (需要 ANTHROPIC_API_KEY)
+  openai   - OpenAI API (需要 OPENAI_API_KEY)
+  ollama   - 本地 Ollama
+  manual   - 手动模式 (打印 prompt 复制到剪贴板)
+
 HELP
 }
 
@@ -960,6 +1515,7 @@ case "$cmd" in
     postmortem)         cmd_postmortem "$@" ;;
     done)               cmd_done "$@" ;;
     status)             cmd_status "$@" ;;
+    ai-config)          cmd_ai_config "$@" ;;
     help|--help|-h)     cmd_help ;;
     *)                  log_error "未知命令: $cmd"; cmd_help; exit 1 ;;
 esac

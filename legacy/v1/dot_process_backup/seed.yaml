@@ -1,0 +1,27 @@
+# === Project Seed ===
+# 请填写以下所有字段
+
+idea: "增强 process-cli，使其能自动验证 invariants 并可视化分支依赖"
+# 一句话描述核心想法
+
+target_user: "使用这套开发流程的个人开发者，需要减少手动操作"
+# 谁会用这个？具体场景是什么？
+
+constraints:
+  - "必须保持纯bash实现（不引入Python/Node）"
+  - "所有新命令必须有 --help 说明"
+# 硬约束列表
+
+non_goals:
+  - "不做 GUI 界面"
+  - "不集成特定 CI/CD 平台"
+# 明确不做的事
+
+success_criteria:
+  - "branch-gate 可以自动执行 check-invariants 命令"
+  - "branch-list 可以按优先级排序并显示依赖"
+# 可验证的成功标准
+
+reversibility_budget: "high"
+# high | medium | low
+# high = 可以大胆实验; low = 每步都要可回退

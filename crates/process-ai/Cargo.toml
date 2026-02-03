@@ -1,0 +1,13 @@
+[package]
+name = "process-ai"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+process-core.workspace = true
+process-config.workspace = true
+async-trait.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true

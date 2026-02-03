@@ -1,0 +1,30 @@
+# AI Provider 配置
+# provider: auto | claude | openai | ollama | manual
+provider: claude
+
+# Claude API (Anthropic)
+# 支持环境变量: ANTHROPIC_API_KEY, ANTHROPIC_MODEL, ANTHROPIC_BASE_URL
+claude:
+  api_key: "sk-suH80nnkcsK76DgtgVvcWOnb11T2n3QcTPoj4VFAZf00SOxW"
+  model: "claude-sonnet-4-5-20250929"
+  base_url: "https://hone.vvvv.ee"
+  max_tokens: 8192
+
+# OpenAI API
+# 支持环境变量: OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL
+openai:
+  api_key: ""
+  model: "gpt-4o"
+  base_url: ""
+  max_tokens: 8192
+
+# Ollama (本地)
+ollama:
+  model: "llama3"
+  endpoint: "http://localhost:11434"
+
+# 其他设置
+settings:
+  auto_save: true
+  show_prompt: false
+  timeout: 180

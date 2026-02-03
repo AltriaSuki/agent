@@ -1,0 +1,80 @@
+[workspace]
+members = [
+    "crates/process-core",
+    "crates/process-ai",
+    "crates/process-generators",
+    "crates/process-checks",
+    "crates/process-reviews",
+    "crates/process-config",
+    ".",  # The main binary in root
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Process CLI Team"]
+license = "MIT"
+
+[workspace.dependencies]
+# CLI & Interaction
+clap = { version = "4.4", features = ["derive", "env"] }
+dialoguer = "0.11"
+console = "0.15"
+colored = "2.0"
+indicatif = "0.17"
+
+# Async & Runtime
+tokio = { version = "1.32", features = ["full"] }
+async-trait = "0.1.73"
+futures = "0.3"
+
+# Serialization & Config
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+toml = "0.8"
+config = "0.13"
+
+# Error Handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# AI & Network
+reqwest = { version = "0.11", features = ["json"] }
+
+# Template & Generation
+tera = "1.19"
+include_dir = "0.7" # For embedding templates
+
+# Utils
+chrono = { version = "0.4", features = ["serde"] }
+dirs = "5.0"
+regex = "1.9"
+uuid = { version = "1.4", features = ["v4"] }
+
+# Internal Crates
+process-core = { path = "crates/process-core" }
+process-ai = { path = "crates/process-ai" }
+process-generators = { path = "crates/process-generators" }
+process-checks = { path = "crates/process-checks" }
+process-reviews = { path = "crates/process-reviews" }
+process-config = { path = "crates/process-config" }
+
+[package]
+name = "process-cli"
+version.workspace = true
+edition.workspace = true
+default-run = "process-cli"
+
+[dependencies]
+clap.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+colored.workspace = true
+process-core.workspace = true
+process-ai.workspace = true
+process-generators.workspace = true
+process-checks.workspace = true
+process-reviews.workspace = true
+process-config.workspace = true

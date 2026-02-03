@@ -1,0 +1,5 @@
+project_name: "My Project"
+description: "A brief description"
+goals:
+  - "Goal 1"
+  - "Goal 2"

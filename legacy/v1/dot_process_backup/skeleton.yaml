@@ -1,0 +1,193 @@
+directory_structure:
+  - path: ".process/"
+    purpose: "流程工具根目录"
+  - path: ".process/invariants.d/"
+    purpose: "存放验证脚本，按 NN-description.sh 命名"
+  - path: ".process/cache/"
+    purpose: "可选的依赖分析缓存，加速 branch-list"
+  - path: ".process/config"
+    purpose: "可选配置文件（优先级权重等）"
+  - path: "bin/"
+    purpose: "可执行命令入口"
+  - path: "lib/"
+    purpose: "共享函数库"
+  - path: "lib/core/"
+    purpose: "核心逻辑：验证引擎、依赖分析"
+  - path: "lib/utils/"
+    purpose: "工具函数：Git操作、格式化输出"
+  - path: "tests/"
+    purpose: "测试脚本和fixtures"
+  - path: "tests/fixtures/"
+    purpose: "测试用的Git仓库快照"
+  - path: "docs/"
+    purpose: "使用文档和示例"
+  - path: "docs/examples/"
+    purpose: "invariants.d/ 脚本示例"
+
+interfaces: |
+  # === lib/core/invariants.sh ===
+  run_invariant_checks() { :; }
+  # 参数: $1=target_branch, $2=verbose_flag
+  # 返回: 0=全部通过, 1=有失败
+  # 输出: 失败的脚本名称和错误信息到stderr
+  
+  execute_single_invariant() { :; }
+  # 参数: $1=script_path, $2=timeout_seconds
+  # 环境变量: BRANCH, TARGET_BRANCH
+  # 返回: 脚本的退出码
+  
+  # === lib/core/dependency.sh ===
+  analyze_branch_dependencies() { :; }
+  # 参数: $1=base_branch (默认main)
+  # 输出: TSV格式 "branch\tparent_branches\tcommit_count\tlast_commit_time"
+  # 基于 git log --merges 解析依赖关系
+  
+  calculate_priority_score() { :; }
+  # 参数: $1=commit_count, $2=days_since_last_commit
+  # 环境变量: PRIORITY_TIME_WEIGHT (默认0.4)
+  # 输出: 0-100的优先级分数
+  
+  detect_dependency_cycles() { :; }
+  # 参数: 依赖关系数组（通过stdin读取TSV）
+  # 返回: 0=无环, 1=有环
+  # 输出: 环路路径到stderr
+  
+  # === lib/utils/git.sh ===
+  get_merge_commits() { :; }
+  # 参数: $1=branch_name
+  # 输出: merge commit列表，格式 "hash\tsource_branch\ttarget_branch"
+  
+  get_branch_commit_count() { :; }
+  # 参数: $1=branch, $2=base_branch
+  # 输出: ahead commit数量
+  
+  get_last_commit_timestamp() { :; }
+  # 参数: $1=branch
+  # 输出: Unix timestamp
+  
+  # === lib/utils/display.sh ===
+  render_ascii_tree() { :; }
+  # 参数: 依赖关系数组（通过stdin读取TSV）
+  # 输出: ASCII树形图，最大宽度120字符
+  # 使用字符: │ ├ └ ─ ┬
+  
+  format_priority_list() { :; }
+  # 参数: 分支信息数组（通过stdin读取TSV）
+  # 输出: "[score] branch_name (N commits ahead)"
+  
+  print_help_message() { :; }
+  # 参数: $1=command_name
+  # 输出: 标准格式帮助信息（Usage/Description/Options/Examples）
+  
+  # === bin/check-invariants ===
+  main() { :; }
+  # 解析参数: --verbose, --help, [target_branch]
+  # 调用 run_invariant_checks
+  # 退出码: 0/1/2/3 按CONV-009
+  
+  # === bin/branch-list ===
+  main() { :; }
+  # 解析参数: --graph, --sort=priority|name|time, --help
+  # 调用 analyze_branch_dependencies + calculate_priority_score
+  # 默认输出优先级列表，--graph输出ASCII树
+  
+  # === bin/branch-gate ===
+  main() { :; }
+  # 解析参数: target_branch, --help
+  # 自动调用 check-invariants
+  # 失败时输出详细错误（INV-003）
+
+rollback_template: |
+  ## Phase 1 回滚（invariants.d/ 机制）
+  1. git revert <phase1-commits> --no-commit
+  2. 删除 .process/invariants.d/ 目录
+  3. 验证: 运行 `git status` 确认无残留文件
+  4. 验证: 运行 `./bin/check-invariants --help` 应返回 "command not found"
+  5. 通知: 团队成员停止使用 check-invariants 命令
+  6. git commit -m "Rollback: Remove invariants validation system"
+  
+  ## Phase 2 回滚（依赖分析和可视化）
+  1. git revert <phase2-commits> --no-commit
+  2. 验证: `./bin/branch-list --graph` 应返回错误或旧版输出
+  3. 验证: 检查 lib/core/dependency.sh 是否已删除
+  4. 通知: 更新文档移除依赖图相关说明
+  5. git commit -m "Rollback: Remove dependency analysis features"
+  
+  ## Phase 3 回滚（branch-gate 集成）
+  1. git revert <phase3-commits> --no-commit
+  2. 验证: `./bin/branch-gate main` 应不再自动调用 check-invariants
+  3. 验证: 手动运行 check-invariants 仍可独立工作
+  4. git commit -m "Rollback: Decouple branch-gate from invariants"
+  
+  ## 完全回滚到增强前状态
+  1. git checkout <pre-enhancement-commit>
+  2. git checkout -b rollback-all-enhancements
+  3. 验证: 运行原有的 process-cli 命令确认功能正常
+  4. 验证: 确认 .process/ 目录不存在或仅包含原有文件
+  5. 通知: 所有用户切换到 rollback 分支
+  6. 可选: git tag v1.0-pre-enhancement <commit> 标记回滚点
+
+verification_checklist:
+  - check: "INV-001: invariants.d/ 脚本可执行且返回码正确"
+    automated: true
+    command: "for f in .process/invariants.d/*.sh; do [ -x \"$f\" ] || exit 1; done"
+  
+  - check: "INV-002: 验证脚本超时机制生效"
+    automated: true
+    command: "timeout 31s ./bin/check-invariants || [ $? -eq 124 ]"
+  
+  - check: "INV-003: branch-gate 输出包含失败脚本名称"
+    automated: true
+    command: "! ./bin/branch-gate main 2>&1 | grep -q 'Failed:.*\\.sh'"
+  
+  - check: "INV-004: 依赖分析不依赖外部配置文件"
+    automated: true
+    command: "[ ! -f .process/branch-deps.txt ] && ./bin/branch-list --graph"
+  
+  - check: "INV-005: 所有新命令支持 --help"
+    automated: true
+    command: "./bin/check-invariants --help && ./bin/branch-list --help"
+  
+  - check: "INV-006: 无非bash依赖"
+    automated: true
+    command: "! grep -r 'python\\|node\\|ruby' bin/ lib/"
+  
+  - check: "INV-007: ASCII图表宽度限制"
+    automated: true
+    command: "./bin/branch-list --graph | awk '{if(length>120) exit 1}'"
+  
+  - check: "INV-008: 优先级计算考虑时间和commit数"
+    automated: false
+    command: "人工检查 lib/core/dependency.sh 中 calculate_priority_score 实现"
+  
+  - check: "INV-009: check-invariants 支持 --verbose"
+    automated: true
+    command: "./bin/check-invariants --verbose 2>&1 | grep -q 'Executing:'"
+  
+  - check: "INV-010: Git解析失败时降级处理"
+    automated: true
+    command: "cd /tmp/empty-repo && git init && ../../bin/branch-list"
+  
+  - check: "CONV-009: 退出码符合约定"
+    automated: true
+    command: "./bin/check-invariants; [ $? -le 3 ]"
+  
+  - check: "无循环依赖引入"
+    automated: true
+    command: "./bin/branch-list --graph 2>&1 | ! grep -q 'Cycle detected'"
+  
+  - check: "所有 invariant 仍然成立"
+    automated: true
+    command: "./bin/check-invariants --verbose"
+  
+  - check: "性能测试：100个分支的依赖分析 <5秒"
+    automated: false
+    command: "time ./bin/branch-list > /dev/null  # 需要准备测试仓库"
+  
+  - check: "文档完整性：README包含所有新命令示例"
+    automated: false
+    command: "人工检查 docs/ 目录"
+  
+  - check: "向后兼容：原有 process-cli 命令仍可用"
+    automated: true
+    command: "./bin/process --help && ./bin/branch-create test-branch"

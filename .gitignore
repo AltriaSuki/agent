@@ -1,0 +1,22 @@
+# Rust build artifacts
+target/
+**/*.rs.bk
+
+# System files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Legacy archive
+# Legacy archive
+# legacy/
+
+# Local process files
+.process/.state
+.process/cache/

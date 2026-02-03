@@ -1,0 +1,4 @@
+ai:
+  provider: auto
+settings:
+  auto_save: true

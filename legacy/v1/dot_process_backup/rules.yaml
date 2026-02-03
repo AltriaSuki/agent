@@ -1,0 +1,135 @@
+```yaml
+selected_approach:
+  name: "混合方案：A的验证机制 + B的动态依赖分析"
+  rationale: |
+    基于以下考量选择混合方案：
+    1. reversibility_budget 为 high，支持分阶段实验
+    2. 方案A的 invariants.d/ 机制简单可靠，可立即交付价值
+    3. 方案B的动态依赖分析解决了A的最大风险（配置过期）
+    4. 避免方案C的复杂度和bash 4.0+依赖
+    5. 混合方案在3-5天内可实现完整功能
+    
+    实施路径：
+    - Phase 1: 实现 invariants.d/ + check-invariants 命令（2天）
+    - Phase 2: 实现 branch-list 的动态依赖分析和ASCII可视化（2天）
+    - Phase 3: 集成 branch-gate 自动验证（1天）
+
+rejected_approaches:
+  - name: "方案A：钩子式验证 + 静态依赖图（完整版）"
+    reason: "静态配置文件 branch-deps.txt 需手动维护，与Git历史不同步的风险过高，违背'减少手动操作'的目标用户需求"
+  
+  - name: "方案C：声明式规则引擎 + 增量验证"
+    reason: "实现复杂度过高（DSL解析器），需要bash 4.0+限制兼容性，且学习曲线陡峭不符合个人开发者快速上手的需求。增量验证的性能优势在个人项目规模下不明显"
+
+invariants:
+  - id: "INV-001"
+    rule: "所有 invariants.d/ 下的脚本必须是可执行文件且返回0表示通过"
+    rationale: "统一验证接口，简化 check-invariants 的实现逻辑"
+    added_in_phase: 2
+    frozen: false
+
+  - id: "INV-002"
+    rule: "invariants.d/ 中的脚本执行超时时间不得超过30秒"
+    rationale: "防止验证脚本阻塞工作流，保持开发体验流畅"
+    added_in_phase: 2
+    frozen: false
+
+  - id: "INV-003"
+    rule: "branch-gate 在验证失败时必须输出具体失败的脚本名称和错误信息"
+    rationale: "提供可操作的反馈，帮助用户快速定位问题"
+    added_in_phase: 2
+    frozen: false
+
+  - id: "INV-004"
+    rule: "依赖关系分析必须基于 git log 的实际历史，不依赖外部配置文件"
+    rationale: "确保依赖信息始终与代码仓库状态同步，避免配置过期风险"
+    added_in_phase: 2
+    frozen: false
+
+  - id: "INV-005"
+    rule: "所有新增命令必须实现 --help 和 -h 参数，输出格式统一"
+    rationale: "满足约束条件，提升工具可发现性和易用性"
+    added_in_phase: 2
+    frozen: true
+
+  - id: "INV-006"
+    rule: "不得引入 Python、Node.js 或其他非标准 Unix 工具的依赖"
+    rationale: "满足纯bash实现的硬约束，确保工具在最小化环境中可运行"
+    added_in_phase: 2
+    frozen: true
+
+  - id: "INV-007"
+    rule: "branch-list 的 ASCII 图表宽度不得超过120字符"
+    rationale: "适配常见终端宽度，避免显示错乱。超出时应自动折叠或提供 --wide 选项"
+    added_in_phase: 2
+    frozen: false
+
+  - id: "INV-008"
+    rule: "优先级计算必须同时考虑时间戳和未合并commit数，权重可配置"
+    rationale: "平衡活跃度和工作量两个维度，提供更合理的优先级排序"
+    added_in_phase: 2
+    frozen: false
+
+  - id: "INV-009"
+    rule: "check-invariants 必须支持 --verbose 模式输出每个脚本的执行状态"
+    rationale: "便于调试验证脚本本身的问题，提升开发体验"
+    added_in_phase: 2
+    frozen: false
+
+  - id: "INV-010"
+    rule: "Git历史解析失败时必须降级到基础模式（仅列出分支名），不得中断命令执行"
+    rationale: "提升工具鲁棒性，避免复杂Git历史导致工具不可用"
+    added_in_phase: 2
+    frozen: false
+
+conventions:
+  - id: "CONV-001"
+    rule: "invariants.d/ 脚本命名格式为 NN-description.sh（NN为两位数字）"
+    rationale: "数字前缀控制执行顺序，描述性名称提升可读性"
+
+  - id: "CONV-002"
+    rule: "所有命令的帮助信息格式：Usage / Description / Options / Examples 四部分"
+    rationale: "统一文档结构，降低学习成本"
+
+  - id: "CONV-003"
+    rule: "branch-list 默认输出格式：[优先级数字] 分支名 (N commits ahead)"
+    rationale: "提供关键信息的紧凑展示，--graph 模式提供详细可视化"
+
+  - id: "CONV-004"
+    rule: "错误信息统一输出到 stderr，正常结果输出到 stdout"
+    rationale: "符合Unix哲学，便于管道操作和错误处理"
+
+  - id: "CONV-005"
+    rule: "依赖关系通过 merge commit 识别，格式：Merge branch 'X' into 'Y' 表示 Y 依赖 X"
+    rationale: "利用Git标准commit message，无需额外标记"
+
+  - id: "CONV-006"
+    rule: "优先级分数范围 0-100，默认权重：时间戳40% + commit数60%"
+    rationale: "可通过环境变量 PRIORITY_TIME_WEIGHT 调整，默认偏重工作量"
+
+  - id: "CONV-007"
+    rule: "invariants.d/ 脚本接收环境变量：BRANCH（当前分支）、TARGET_BRANCH（目标分支）"
+    rationale: "提供上下文信息，支持分支特定的验证逻辑"
+
+  - id: "CONV-008"
+    rule: "ASCII图表字符集：│ ├ └ ─ ┬ ┴ ┼（使用Unicode box-drawing）"
+    rationale: "现代终端广泛支持，视觉效果优于纯ASCII字符"
+
+  - id: "CONV-009"
+    rule: "命令退出码：0=成功，1=验证失败，2=参数错误，3=Git操作失败"
+    rationale: "区分不同类型的失败，便于脚本自动化处理"
+
+  - id: "CONV-010"
+    rule: ".process/ 目录结构：invariants.d/（验证脚本）、cache/（可选缓存）、config（可选配置）"
+    rationale: "清晰的目录组织，为未来扩展预留空间"
+
+conflict_resolution:
+  policy: "human_final_say"
+  notes: |
+    在以下情况需要人工决策：
+    1. invariants.d/ 脚本之间存在冲突的验证结果
+    2. Git历史解析产生歧义的依赖关系（如交叉merge）
+    3. 优先级计算结果与用户直觉严重不符
+    4. 性能问题需要在准确性和速度间权衡
+    工具应提供 --interactive 模式供人工介入
+```

@@ -1,0 +1,11 @@
+[package]
+name = "process-generators"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+process-core.workspace = true
+process-config.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+anyhow.workspace = true

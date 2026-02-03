@@ -48,7 +48,7 @@ impl AiRegistry {
         candidates.sort_by(|a, b| b.priority().cmp(&a.priority()));
         
         candidates.first()
-            .map(|p| (*p).clone())
+            .map(|p| std::sync::Arc::clone(p))
             .ok_or_else(|| anyhow!("No available AI providers found. Please configure API keys or check connections."))
     }
 }

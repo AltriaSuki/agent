@@ -35,8 +35,7 @@ goals:
         let config_content = r#"ai:
   provider: auto
   # claude:
-  #   api_key: "YOUR_API_KEY"
-  #   # Or set ANTHROPIC_API_KEY environment variable
+  #   api_key: "YOUR_API_KEY"  # Or set ANTHROPIC_API_KEY environment variable
 settings:
   auto_save: true
 "#;

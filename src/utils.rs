@@ -7,24 +7,22 @@ use process_ai::{registry::AiRegistry, providers::claude::ClaudeProvider, provid
 pub fn strip_markdown_code_block(content: &str) -> &str {
     let content = content.trim();
     
-    // Check for ```yaml or ```json or plain ```
-    if content.starts_with("```yaml") {
-        content.strip_prefix("```yaml")
-            .and_then(|s| s.strip_suffix("```"))
-            .map(|s| s.trim())
-            .unwrap_or(content)
+    // Determine the prefix to strip
+    let stripped = if content.starts_with("```yaml") {
+        content.strip_prefix("```yaml").unwrap_or(content)
     } else if content.starts_with("```json") {
-        content.strip_prefix("```json")
-            .and_then(|s| s.strip_suffix("```"))
-            .map(|s| s.trim())
-            .unwrap_or(content)
+        content.strip_prefix("```json").unwrap_or(content)
     } else if content.starts_with("```") {
-        content.strip_prefix("```")
-            .and_then(|s| s.strip_suffix("```"))
-            .map(|s| s.trim())
-            .unwrap_or(content)
+        content.strip_prefix("```").unwrap_or(content)
     } else {
-        content
+        return content;
+    };
+    
+    // Find the closing ``` and strip everything after it
+    if let Some(end_idx) = stripped.rfind("```") {
+        stripped[..end_idx].trim()
+    } else {
+        stripped.trim()
     }
 }
 
@@ -61,6 +59,12 @@ mod tests {
     }
 
     #[test]
+    fn test_strip_json_block() {
+        let input = "```json\n{\"key\": \"value\"}\n```";
+        assert_eq!(strip_markdown_code_block(input), "{\"key\": \"value\"}");
+    }
+
+    #[test]
     fn test_strip_plain_block() {
         let input = "```\nsome content\n```";
         assert_eq!(strip_markdown_code_block(input), "some content");
@@ -69,6 +73,12 @@ mod tests {
     #[test]
     fn test_no_block() {
         let input = "key: value";
+        assert_eq!(strip_markdown_code_block(input), "key: value");
+    }
+
+    #[test]
+    fn test_trailing_text_after_block() {
+        let input = "```yaml\nkey: value\n```\n\nSome AI explanation text";
         assert_eq!(strip_markdown_code_block(input), "key: value");
     }
 }

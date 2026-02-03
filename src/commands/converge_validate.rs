@@ -20,6 +20,7 @@ struct RulesOutput {
 #[derive(Deserialize)]
 struct Invariant {
     id: String,
+    #[allow(dead_code)]
     rule: String,
     #[allow(dead_code)]
     rationale: String,
@@ -37,10 +38,10 @@ struct ConflictResolution {
     policy: String,
 }
 
+#[allow(dead_code)]  // Fields used for deserialization validation
 #[derive(Deserialize)]
 struct RejectedApproach {
     name: String,
-    #[allow(dead_code)]
     reason: String,
 }
 
@@ -77,7 +78,14 @@ pub fn execute() -> Result<()> {
         }
     }
 
-    // 4. Validate conflict resolution policy
+    // 4. Validate conventions
+    for conv in &rules.conventions {
+        if !conv.id.starts_with("CONV-") {
+            bail!("Convention ID '{}' must start with 'CONV-'", conv.id);
+        }
+    }
+
+    // 5. Validate conflict resolution policy
     let valid_policies = ["human_final_say", "ai_decides", "majority_vote"];
     if !valid_policies.contains(&rules.conflict_resolution.policy.as_str()) {
         bail!(
@@ -87,12 +95,12 @@ pub fn execute() -> Result<()> {
         );
     }
 
-    // 5. Validate selected approach exists
+    // 6. Validate selected approach exists
     if rules.selected_approach.name.is_empty() {
         bail!("Selected approach name cannot be empty");
     }
 
-    // 6. Update state
+    // 7. Update state
     let mut state = ProcessState::load()?;
     state.set_phase(Phase::Converge);
     state.save()?;

@@ -1,8 +1,39 @@
 use anyhow::{Result, Context, bail};
 use colored::Colorize;
 use process_core::{state::ProcessState, phase::Phase};
+use serde::Deserialize;
 use std::fs;
 use std::path::Path;
+
+/// Typed structure for diverge output validation
+#[derive(Deserialize)]
+struct DivergeOutput {
+    proposals: Vec<Proposal>,
+    #[serde(default)]
+    comparison_dimensions: Vec<ComparisonDimension>,
+}
+
+#[derive(Deserialize)]
+struct Proposal {
+    name: String,
+    #[serde(default)]
+    summary: Option<String>,
+    architecture: String,
+    tradeoffs: Vec<String>,
+    risks: Vec<String>,
+    #[serde(default)]
+    constraint_alignment: Option<serde_yaml::Value>,
+}
+
+#[allow(dead_code)]  // Fields used for deserialization validation
+#[derive(Deserialize)]
+struct ComparisonDimension {
+    dimension: String,
+    #[serde(default)]
+    ranking: Vec<String>,
+    #[serde(default)]
+    notes: Option<String>,
+}
 
 pub fn execute() -> Result<()> {
     println!("{}", "Validating Diverge Output".bold().blue());
@@ -15,52 +46,40 @@ pub fn execute() -> Result<()> {
 
     let content = fs::read_to_string(diverge_path).context("Failed to read diverge_summary.yaml")?;
 
-    // 2. Validate YAML structure
-    let yaml: serde_yaml::Value = serde_yaml::from_str(&content)
+    // 2. Parse and validate structure using typed deserialization
+    let output: DivergeOutput = serde_yaml::from_str(&content)
         .context("Invalid YAML format in diverge_summary.yaml")?;
 
-    // 3. Check required fields
-    let proposals = yaml.get("proposals")
-        .ok_or_else(|| anyhow::anyhow!("Missing 'proposals' field in diverge_summary.yaml"))?;
-
-    let proposals_arr = proposals.as_sequence()
-        .ok_or_else(|| anyhow::anyhow!("'proposals' must be an array"))?;
-
-    if proposals_arr.len() < 2 {
-        bail!("At least 2 proposals required, found {}", proposals_arr.len());
+    // 3. Validate proposals
+    if output.proposals.len() < 2 {
+        bail!("At least 2 proposals required, found {}", output.proposals.len());
     }
 
-    // Validate each proposal has required fields
-    for (i, proposal) in proposals_arr.iter().enumerate() {
-        let proposal_map = proposal.as_mapping()
-            .ok_or_else(|| anyhow::anyhow!("Proposal {} is not a valid object", i + 1))?;
-        
-        let name = proposal_map.get(&serde_yaml::Value::String("name".to_string()))
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Proposal {} missing 'name' field", i + 1))?;
-        
-        if proposal_map.get(&serde_yaml::Value::String("architecture".to_string())).is_none() {
-            bail!("Proposal '{}' missing 'architecture' field", name);
+    for proposal in &output.proposals {
+        if proposal.name.is_empty() {
+            bail!("Proposal name cannot be empty");
         }
-        if proposal_map.get(&serde_yaml::Value::String("tradeoffs".to_string())).is_none() {
-            bail!("Proposal '{}' missing 'tradeoffs' field", name);
+        if proposal.architecture.is_empty() {
+            bail!("Proposal '{}' missing architecture description", proposal.name);
         }
-        if proposal_map.get(&serde_yaml::Value::String("risks".to_string())).is_none() {
-            bail!("Proposal '{}' missing 'risks' field", name);
+        if proposal.tradeoffs.is_empty() {
+            bail!("Proposal '{}' must have at least one tradeoff", proposal.name);
+        }
+        if proposal.risks.is_empty() {
+            bail!("Proposal '{}' must have at least one risk", proposal.name);
         }
     }
 
-    // 4. Check comparison dimensions
-    if yaml.get("comparison_dimensions").is_none() {
-        bail!("Missing 'comparison_dimensions' field");
-    }
-
-    // 5. Update state
+    // 4. Update state
     let mut state = ProcessState::load()?;
     state.set_phase(Phase::Diverge);
     state.save()?;
 
-    println!("{} Diverge output validated ({} proposals)", "✔".green(), proposals_arr.len());
+    println!("{} Diverge output validated ({} proposals)", "✔".green(), output.proposals.len());
+    if !output.comparison_dimensions.is_empty() {
+        println!("  - {} comparison dimensions", output.comparison_dimensions.len());
+    }
+
     println!("\nNext: Run {} to converge on a single approach.", "process converge".bold());
 
     Ok(())

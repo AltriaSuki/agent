@@ -41,4 +41,20 @@ impl ProcessState {
         fs::write(path, content).context("Failed to write state file")?;
         Ok(())
     }
+
+    pub fn check_phase(&self, expected: Phase) -> Result<()> {
+        if self.current_phase < expected {
+            let msg = format!("Process not ready. Current: {}, Required: {}. Run previous steps first.", self.current_phase, expected);
+            // using anyhow::bail! equivalent
+            return Err(anyhow::anyhow!(msg));
+        }
+        Ok(())
+    }
+
+    pub fn set_phase(&mut self, phase: Phase) {
+        if phase > self.current_phase {
+            self.current_phase = phase;
+            self.last_updated = Utc::now();
+        }
+    }
 }

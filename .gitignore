@@ -21,4 +21,9 @@ target/
 .process/.state
 .process/cache/
 .process/config.yaml
+.process/seed.yaml
+.process/diverge_summary.yaml
+.process/converge_summary.yaml
+.process/rules.yaml
+.process/skeleton.yaml
 

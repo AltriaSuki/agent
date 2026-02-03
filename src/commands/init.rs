@@ -44,7 +44,7 @@ settings:
     }
 
     // 4. Initialize State
-    let mut state = ProcessState::default(); 
+    let state = ProcessState::default(); 
     state.save().context("Failed to save initial state")?;
     println!("{} Initialized state to {}", "✔".green(), "Seed");
     

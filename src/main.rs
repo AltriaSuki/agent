@@ -13,6 +13,7 @@ async fn main() -> Result<()> {
         Commands::Init { force } => commands::init::execute(force).await?,
         Commands::Status => commands::status::execute().await?,
         Commands::AiConfig(cmd) => commands::ai_config::execute(&cmd).await?,
+        Commands::Diverge => commands::diverge::execute().await?,
     }
 
     Ok(())

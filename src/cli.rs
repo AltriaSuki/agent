@@ -28,6 +28,9 @@ pub enum Commands {
     /// AI Configuration
     #[command(subcommand)]
     AiConfig(AiConfigCommands),
+
+    /// Phase 1: Generate divergent architectural proposals
+    Diverge,
 }
 
 #[derive(Subcommand)]

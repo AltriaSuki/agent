@@ -20,3 +20,5 @@ target/
 # Local process files
 .process/.state
 .process/cache/
+.process/config.yaml
+.process/config.yaml

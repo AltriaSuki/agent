@@ -36,7 +36,7 @@ impl ClaudeProvider {
         env::var("ANTHROPIC_MODEL")
             .ok()
             .or(self.config.model.clone())
-            .unwrap_or_else(|| "claude-3-5-sonnet-20240620".to_string())
+            .unwrap_or_else(|| "claude-3-5-sonnet-20241022".to_string())
     }
 
     fn get_base_url(&self) -> String {
@@ -104,10 +104,12 @@ impl AiProvider for ClaudeProvider {
 
         // Extract usage if available
         let usage = if let Some(u) = body.get("usage") {
+            let prompt_tokens = u["input_tokens"].as_u64().unwrap_or(0) as usize;
+            let completion_tokens = u["output_tokens"].as_u64().unwrap_or(0) as usize;
             Some(TokenUsage {
-                prompt_tokens: u["input_tokens"].as_u64().unwrap_or(0) as usize,
-                completion_tokens: u["output_tokens"].as_u64().unwrap_or(0) as usize,
-                total_tokens: 0, // Claude usage format separates input/output
+                prompt_tokens,
+                completion_tokens,
+                total_tokens: prompt_tokens + completion_tokens,
             })
         } else {
             None

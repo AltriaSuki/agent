@@ -7,6 +7,12 @@ pub struct AiRegistry {
     providers: HashMap<String, Arc<dyn AiProvider>>,
 }
 
+impl Default for AiRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AiRegistry {
     pub fn new() -> Self {
         Self {
@@ -42,8 +48,8 @@ impl AiRegistry {
         candidates.sort_by(|a, b| b.priority().cmp(&a.priority()));
         
         candidates.first()
-            .cloned()
-            .cloned() // Arc clone
+            .cloned() 
+            .cloned() // Arc clone needed because candidates contains references
             .ok_or_else(|| anyhow!("No available AI providers found. Please configure API keys or check connections."))
     }
 }

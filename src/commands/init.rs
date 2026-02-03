@@ -34,6 +34,8 @@ goals:
     if !config_path.exists() || force {
         let config_content = r#"ai:
   provider: auto
+  # claude:
+  #   api_key: "YOUR_API_KEY"
 settings:
   auto_save: true
 "#;

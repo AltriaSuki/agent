@@ -2,9 +2,10 @@ use anyhow::{Result, Context, bail};
 use colored::Colorize;
 use process_core::{state::ProcessState, phase::Phase};
 use process_config::config::Config;
-use process_ai::{registry::AiRegistry, providers::claude::ClaudeProvider, provider::CompletionRequest};
+use process_ai::provider::CompletionRequest;
 use std::fs;
 use std::path::Path;
+use crate::utils::{strip_markdown_code_block, get_ai_provider};
 
 pub async fn execute() -> Result<()> {
     println!("{}", "Phase 1: Diverge — Generating Architectural Proposals".bold().blue());
@@ -57,37 +58,17 @@ comparison_dimensions:
     // 4. Call AI
     println!("Calling AI to generate proposals...");
     let config = Config::load()?;
-    
-    // Setup Registry
-    let mut registry = AiRegistry::new();
-    if let Some(claude_config) = config.ai.claude.clone() {
-        registry.register(ClaudeProvider::new(Some(claude_config)));
-    }
-    // Add other providers here when implemented
-    
-    let provider = registry.get_provider(&config.ai.provider).await?;
+    let provider = get_ai_provider(&config).await?;
     println!("Using Provider: {}", provider.name().cyan());
 
     let response = provider.complete(&CompletionRequest {
         prompt,
-        max_tokens: Some(4096), // Sufficient for diverge output
-        model: None, // Use default from provider config
+        max_tokens: Some(4096),
+        model: None,
     }).await?;
 
-    let content = response.content.trim();
-    
-    // 5. Clean Output (Strip markdown blocks if any)
-    let cleaned_content = if content.starts_with("```yaml") {
-        content.strip_prefix("```yaml").unwrap_or(content)
-            .strip_suffix("```").unwrap_or(content)
-            .trim()
-    } else if content.starts_with("```") {
-         content.strip_prefix("```").unwrap_or(content)
-            .strip_suffix("```").unwrap_or(content)
-            .trim()
-    } else {
-        content
-    };
+    // 5. Clean Output
+    let cleaned_content = strip_markdown_code_block(&response.content);
 
     // 6. Save Output
     let output_path = Path::new(".process/diverge_summary.yaml");
@@ -99,7 +80,7 @@ comparison_dimensions:
     state.save()?;
     println!("{} State updated to Diverge", "✔".green());
 
-    println!("\nNext: Run {} to view detailed status.", "process status".bold());
+    println!("\nNext: Run {} to validate output.", "process diverge-validate".bold());
     
     Ok(())
 }

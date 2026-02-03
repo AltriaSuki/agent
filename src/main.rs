@@ -1,5 +1,6 @@
 mod cli;
 mod commands;
+mod utils;
 
 use clap::Parser;
 use cli::{Cli, Commands};
@@ -16,6 +17,7 @@ async fn main() -> Result<()> {
         Commands::Diverge => commands::diverge::execute().await?,
         Commands::DivergeValidate => commands::diverge_validate::execute()?,
         Commands::Converge => commands::converge::execute().await?,
+        Commands::ConvergeValidate => commands::converge_validate::execute()?,
     }
 
     Ok(())

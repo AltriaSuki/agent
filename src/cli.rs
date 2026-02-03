@@ -37,6 +37,9 @@ pub enum Commands {
 
     /// Phase 2: Converge proposals into rules
     Converge,
+
+    /// Validate converge output
+    ConvergeValidate,
 }
 
 #[derive(Subcommand)]

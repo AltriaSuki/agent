@@ -78,3 +78,4 @@ process-generators.workspace = true
 process-checks.workspace = true
 process-reviews.workspace = true
 process-config.workspace = true
+serde_yaml.workspace = true

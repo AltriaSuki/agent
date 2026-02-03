@@ -14,6 +14,8 @@ async fn main() -> Result<()> {
         Commands::Status => commands::status::execute().await?,
         Commands::AiConfig(cmd) => commands::ai_config::execute(&cmd).await?,
         Commands::Diverge => commands::diverge::execute().await?,
+        Commands::DivergeValidate => commands::diverge_validate::execute()?,
+        Commands::Converge => commands::converge::execute().await?,
     }
 
     Ok(())

@@ -31,6 +31,12 @@ pub enum Commands {
 
     /// Phase 1: Generate divergent architectural proposals
     Diverge,
+
+    /// Validate diverge output
+    DivergeValidate,
+
+    /// Phase 2: Converge proposals into rules
+    Converge,
 }
 
 #[derive(Subcommand)]

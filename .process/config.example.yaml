@@ -3,7 +3,7 @@ ai:
   claude:
     api_key: "YOUR_API_KEY_HERE"
     model: "claude-sonnet-4-5-20250929"
-    base_url: "https://hone.vvvv.ee"
+    # base_url: "https://api.anthropic.com"
     max_tokens: 8192
 settings:
   auto_save: true

@@ -21,4 +21,4 @@ target/
 .process/.state
 .process/cache/
 .process/config.yaml
-.process/config.yaml
+

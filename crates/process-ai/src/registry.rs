@@ -48,8 +48,7 @@ impl AiRegistry {
         candidates.sort_by(|a, b| b.priority().cmp(&a.priority()));
         
         candidates.first()
-            .cloned() 
-            .cloned() // Arc clone needed because candidates contains references
+            .map(|p| (*p).clone())
             .ok_or_else(|| anyhow!("No available AI providers found. Please configure API keys or check connections."))
     }
 }

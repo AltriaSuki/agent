@@ -11,11 +11,12 @@ struct SkeletonOutput {
     files: Vec<SkeletonFile>,
 }
 
+#[allow(dead_code)] // Fields used for deserialization validation
 #[derive(Deserialize)]
 struct SkeletonFile {
     path: String,
     #[serde(default)]
-    _description: Option<String>,
+    description: Option<String>,
 }
 
 pub fn execute() -> Result<()> {
@@ -39,14 +40,15 @@ pub fn execute() -> Result<()> {
     }
 
     let mut has_readme = false;
-    let mut _has_gitignore = false;
+    let mut has_gitignore = false;
 
     for file in &output.files {
         if file.path.is_empty() {
             bail!("File path cannot be empty");
         }
-        if file.path.starts_with('/') || file.path.contains("..") {
-             bail!("Invalid file path '{}': Must be relative and safe", file.path);
+        // Basic path safety check
+        if file.path.starts_with('/') || file.path.contains("..") || file.path.contains('\\') || file.path.contains(':') {
+             bail!("Invalid file path '{}': Must be relative and safe (no absolute paths, '..', backslashes, or colons)", file.path);
         }
         
         let path_lower = file.path.to_lowercase();
@@ -54,22 +56,21 @@ pub fn execute() -> Result<()> {
             has_readme = true;
         }
         if path_lower == ".gitignore" {
-            _has_gitignore = true;
+            has_gitignore = true;
         }
     }
 
     if !has_readme {
         println!("{}", "Warning: No README.md found in skeleton".yellow());
     }
+    if !has_gitignore {
+        println!("{}", "Warning: No .gitignore found in skeleton".yellow());
+    }
 
-    // 4. Update state (if not already verified, but skeleton-validate IS the verification step)
-    // Actually, skeleton command sets phase to Skeleton. Validate confirms it.
-    // We can stick to current phase or strictly check we are in Skeleton.
+    // 4. Update/Check state
     let state = ProcessState::load()?;
     state.check_phase(Phase::Skeleton)?;
-    // No phase change needed here, just confirmation.
-    state.save()?; // Update timestamp
-
+    
     println!("{} Skeleton validated ({} files)", "✔".green(), output.files.len());
     println!("\nSkeleton is ready. Next steps would be to apply this plan (future feature).");
 

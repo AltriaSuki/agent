@@ -19,7 +19,7 @@ pub async fn execute() -> Result<()> {
     let rules_path = Path::new(".process/rules.yaml");
     
     if !seed_path.exists() {
-        bail!("Seed file not found.");
+        bail!("Seed file not found. Run 'process init' first.");
     }
     if !rules_path.exists() {
         bail!("Rules file not found. Run 'process converge' first.");

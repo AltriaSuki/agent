@@ -40,6 +40,12 @@ pub enum Commands {
 
     /// Validate converge output
     ConvergeValidate,
+
+    /// Phase 3: Generate project skeleton
+    Skeleton,
+
+    /// Validate skeleton output
+    SkeletonValidate,
 }
 
 #[derive(Subcommand)]

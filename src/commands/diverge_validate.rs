@@ -17,12 +17,12 @@ struct DivergeOutput {
 struct Proposal {
     name: String,
     #[serde(default)]
-    summary: Option<String>,
+    _summary: Option<String>,
     architecture: String,
     tradeoffs: Vec<String>,
     risks: Vec<String>,
     #[serde(default)]
-    constraint_alignment: Option<serde_yaml::Value>,
+    _constraint_alignment: Option<serde_yaml::Value>,
 }
 
 #[allow(dead_code)]  // Fields used for deserialization validation

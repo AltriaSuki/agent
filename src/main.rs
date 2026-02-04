@@ -18,6 +18,8 @@ async fn main() -> Result<()> {
         Commands::DivergeValidate => commands::diverge_validate::execute()?,
         Commands::Converge => commands::converge::execute().await?,
         Commands::ConvergeValidate => commands::converge_validate::execute()?,
+        Commands::Skeleton => commands::skeleton::execute().await?,
+        Commands::SkeletonValidate => commands::skeleton_validate::execute()?,
     }
 
     Ok(())

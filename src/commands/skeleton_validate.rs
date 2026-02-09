@@ -1,6 +1,5 @@
 use anyhow::{Result, Context, bail};
 use colored::Colorize;
-use process_core::{state::ProcessState, phase::Phase};
 use serde::Deserialize;
 use std::fs;
 use std::path::Path;
@@ -67,10 +66,6 @@ pub fn execute() -> Result<()> {
         println!("{}", "Warning: No .gitignore found in skeleton".yellow());
     }
 
-    // 4. Update/Check state
-    let state = ProcessState::load()?;
-    state.check_phase(Phase::Skeleton)?;
-    
     println!("{} Skeleton validated ({} files)", "✔".green(), output.files.len());
     println!("\nSkeleton is ready. Next steps would be to apply this plan (future feature).");
 

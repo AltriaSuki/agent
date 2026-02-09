@@ -1,4 +1,5 @@
 pub mod init;
+pub mod seed_validate;
 pub mod status;
 pub mod ai_config;
 pub mod diverge;

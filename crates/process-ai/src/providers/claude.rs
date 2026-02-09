@@ -36,7 +36,7 @@ impl ClaudeProvider {
         env::var("ANTHROPIC_MODEL")
             .ok()
             .or(self.config.model.clone())
-            .unwrap_or_else(|| "claude-3-5-sonnet-20241022".to_string())
+            .unwrap_or_else(|| "claude-sonnet-4-5-20250929".to_string())
     }
 
     fn get_base_url(&self) -> String {

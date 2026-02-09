@@ -19,11 +19,20 @@ pub async fn execute(force: bool) -> Result<()> {
     // 2. Create seed.yaml template
     let seed_path = process_dir.join("seed.yaml");
     if !seed_path.exists() || force {
-        let seed_content = r#"project_name: "My Project"
-description: "A brief description"
-goals:
-  - "Goal 1"
-  - "Goal 2"
+        let seed_content = r#"# .process/seed.yaml — 结构化输入，缺一不可
+idea: "一句话描述核心想法"
+target_user: "谁会用这个？具体场景是什么？"
+constraints:
+  - "硬约束1 (e.g. 必须纯离线运行)"
+  - "硬约束2"
+non_goals:
+  - "明确不做的事1"
+  - "明确不做的事2"
+success_criteria:
+  - "可验证的成功标准1"
+  - "可验证的成功标准2"
+reversibility_budget: "high"
+# high = 可以大胆实验; medium = 适度谨慎; low = 每步都要可回退
 "#;
         fs::write(&seed_path, seed_content).context("Failed to write seed.yaml")?;
         println!("{} Created {}", "✔".green(), seed_path.display());

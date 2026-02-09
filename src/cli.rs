@@ -29,6 +29,9 @@ pub enum Commands {
     #[command(subcommand)]
     AiConfig(AiConfigCommands),
 
+    /// Validate seed.yaml
+    SeedValidate,
+
     /// Phase 1: Generate divergent architectural proposals
     Diverge,
 

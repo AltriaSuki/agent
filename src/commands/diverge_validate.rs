@@ -1,6 +1,5 @@
 use anyhow::{Result, Context, bail};
 use colored::Colorize;
-use process_core::{state::ProcessState, phase::Phase};
 use serde::Deserialize;
 use std::fs;
 use std::path::Path;
@@ -71,11 +70,6 @@ pub fn execute() -> Result<()> {
             bail!("Proposal '{}' must have at least one risk", proposal.name);
         }
     }
-
-    // 4. Update state
-    let mut state = ProcessState::load()?;
-    state.set_phase(Phase::Diverge);
-    state.save()?;
 
     println!("{} Diverge output validated ({} proposals)", "✔".green(), output.proposals.len());
     if !output.comparison_dimensions.is_empty() {

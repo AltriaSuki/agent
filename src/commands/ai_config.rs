@@ -1,8 +1,7 @@
 use anyhow::Result;
 use crate::cli::AiConfigCommands;
+use crate::utils;
 use process_config::config::Config;
-use process_ai::registry::AiRegistry;
-use process_ai::providers::claude::ClaudeProvider;
 use process_ai::provider::CompletionRequest;
 use colored::Colorize;
 
@@ -24,15 +23,9 @@ pub async fn execute(command: &AiConfigCommands) -> Result<()> {
         AiConfigCommands::Test => {
             println!("Testing AI Connection...");
             let config = Config::load()?;
-            
-            // Initialize Registry
-            let mut registry = AiRegistry::new();
-            registry.register(ClaudeProvider::new(config.ai.claude.clone()));
-            // registry.register(OpenAIProvider::new(...));
-            
-            let provider_name = &config.ai.provider;
-            let provider = registry.get_provider(provider_name).await?;
-            
+
+            let provider = utils::get_ai_provider(&config).await?;
+
             println!("Selected Provider: {}", provider.name().cyan());
             
             let response = provider.complete(&CompletionRequest {

@@ -24,11 +24,13 @@ impl Default for ProcessState {
 
 impl ProcessState {
     pub fn load() -> Result<Self> {
-        let path = Path::new(".process/.state.yaml");
+        let process_dir = Path::new(".process");
+        if !process_dir.exists() {
+            anyhow::bail!("Not a process project (no .process/ directory). Run 'process init' first.");
+        }
+        let path = process_dir.join(".state.yaml");
         if !path.exists() {
-            // Default if not exists, or error? 
-            // Better to return default for now or specific error
-             return Ok(Self::default());
+            return Ok(Self::default());
         }
         let content = fs::read_to_string(path).context("Failed to read state file")?;
         let state: Self = serde_yaml::from_str(&content).context("Failed to parse state file")?;

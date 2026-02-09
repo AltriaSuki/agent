@@ -1,6 +1,5 @@
 use anyhow::{Result, Context, bail};
 use colored::Colorize;
-use process_core::{state::ProcessState, phase::Phase};
 use serde::Deserialize;
 use std::fs;
 use std::path::Path;
@@ -99,11 +98,6 @@ pub fn execute() -> Result<()> {
     if rules.selected_approach.name.is_empty() {
         bail!("Selected approach name cannot be empty");
     }
-
-    // 7. Update state
-    let mut state = ProcessState::load()?;
-    state.set_phase(Phase::Converge);
-    state.save()?;
 
     println!("{} Rules validated successfully", "✔".green());
     println!("  - {} invariants", rules.invariants.len());

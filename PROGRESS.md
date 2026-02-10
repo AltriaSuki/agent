@@ -8,22 +8,22 @@
 
 将 `legacy/v1/process-cli.sh` (1,522 行 Bash) 迁移为可扩展的 Rust CLI 工具。
 
-## 当前状态: ~60% 完成
+## 当前状态: ~75% 完成
 
 ### ✅ 已完成
 
 #### 基础架构
 - [x] Cargo Workspace 设置 (6 crates)
 - [x] 核心 crates: `process-core`, `process-ai`, `process-config`
-- [x] CLI 框架 (clap) — 21 个子命令
+- [x] CLI 框架 (clap) — 22 个子命令
 - [x] 状态机 (`Phase` enum, `ProcessState`)
 - [x] 配置系统 (默认值 → 全局 → 项目 → 环境变量)
 
 #### 命令 (Phase 0-3)
 - [x] `init` — 初始化项目
-- [x] `seed-validate` — 验证 seed.yaml 6字段规范 ✨ NEW
-- [x] `status` — 显示当前状态
-- [x] `ai-config show/test` — AI 配置管理
+- [x] `seed-validate` — 验证 seed.yaml 6字段规范
+- [x] `status` — 显示当前状态（进度条 + 分支状态 + artifact 检查）
+- [x] `ai-config show/test/set-provider` — AI 配置管理 ✨ UPDATED
 - [x] `diverge` — 生成架构提案 (≥2个)
 - [x] `diverge-validate` — 验证提案格式
 - [x] `converge` — 收敛为单一方案 + 规则
@@ -31,83 +31,68 @@
 - [x] `skeleton` — 生成项目骨架
 - [x] `skeleton-validate` — 验证骨架输出
 
-#### AI 系统
+#### MS0-MS2 ✅ DONE (详见 ROADMAP.md)
+
+#### MS3: Prompt 系统 ✅ DONE (2026-02-10)
+- [x] Tera 模板引擎 — 从 `format!()` 迁移到 `.md.tera` 文件
+- [x] 4 级查找链 — 项目本地 provider → 项目本地 default → 内置 provider → 内置 default
+- [x] `include_dir!` 编译时嵌入 — 12 个内置模板 (9 default + 3 claude)
+- [x] 变量注入 — 所有命令使用 `tera::Context`
+- [x] Claude 专用模板 — `diverge`/`converge`/`skeleton` 使用 XML 标签
+
+#### MS4: 测试体系 ✅ DONE (2026-02-10)
+- [x] `process-core` 单元测试 (11 tests) — Phase 排序、set_phase 只进不退、load/save 生命周期
+- [x] `process-config` 单元测试 (3 tests) — 默认值正确性、无文件时使用默认
+- [x] `process-ai` 单元测试 (9 tests) — MockProvider、registry auto-detect 优先级
+- [x] `process-cli` 单元测试 (9 tests) — PromptEngine 渲染、utils strip_markdown
+- [x] **共 32 个测试，全部通过** ✨ NEW
+
+#### MS5: 更多 AI Provider ✅ DONE (2026-02-10)
+- [x] OpenAI Provider — GPT-4o，`OPENAI_API_KEY`，priority 80
+- [x] Ollama Provider — 本地模型 `llama3.1`，自动 ping 检测，priority 30
+- [x] Claude CLI Provider — 调用 `claude` 命令行，priority 95 ✨ NEW
+- [x] Manual Provider — 打印 prompt、等待粘贴，零依赖兜底，priority 1 ✨ NEW
+- [x] `ai-config set-provider` 子命令 ✨ NEW
+- [x] `ai-config show` 增强 — 显示所有已注册 provider 可用性 ✨ NEW
+
+### AI 系统
 - [x] `AiProvider` trait + `CompletionRequest/Response`
-- [x] `AiRegistry` (自动检测，按优先级排序)
-- [x] `ClaudeProvider` (API) 实现
-
-#### MS0: 基础修复 ✅ DONE (2026-02-09)
-- [x] seed.yaml 模板对齐 PROCESS.md 6字段规范
-- [x] 新增 `seed-validate` 命令（typed deserialization）
-- [x] 统一 validate 行为：移除 phase 推进副作用
-- [x] `ProcessState::load()` 无 .process/ 时报明确错误
-- [x] `ai-config test` 复用 `utils::get_ai_provider()`
-- [x] Claude 默认模型更新为 claude-sonnet-4-5
-- [x] 清理 10 个未使用的 workspace 依赖
-
-#### MS1: Bash 功能平替 ✅ DONE (2026-02-10)
-- [x] `learn` 命令 — 向 learnings.yaml 追加记录
-- [x] `friction` 命令 — 向 friction.yaml 追加记录
-- [x] `branch new` 命令 — 创建分支假设 YAML
-- [x] `branch start` 命令 — 验证假设、创建 git 分支
-- [x] `branch review` 命令 — 多角色 AI 审查 (4角色)
-- [x] `branch abuse` 命令 — 恶意用户对抗测试
-- [x] `branch gate` 命令 — 合并门控检查
-- [x] `branch merge` 命令 — 标记分支为已合并
-- [x] `stabilize` 命令 — 冻结不变量、检查未合并分支
-- [x] `postmortem` 命令 — AI 生成回顾报告
-- [x] `done` 命令 — 标记项目完成
-- [x] 增强 `status` 命令 — 进度条 + 分支状态 + artifact 检查
-- [x] 修复 process-ai clippy warning (sort_by_key)
-
-#### MS1.5: 决策深度增强 ✅ DONE (2026-02-10)
-- [x] 1.5a: 决策日志自动化 — `decision_log.rs` 模块，diverge/converge/skeleton/stabilize 集成
-- [x] 1.5b: Challenge 命令 — `diverge-challenge` + `converge-challenge`
-- [x] 1.5c: 冲突裁决增强 — `branch review` 自动检测角色冲突，交互式裁决
-- [x] 1.5d: 决策质量回顾 — `postmortem` 交互式回顾每个历史决策
-
-#### MS2: Adopt Pass 组 ✅ DONE (2026-02-10)
-- [x] `adopt_utils.rs` — 共享工具 (ensure_process_dir, IGNORE_DIRS, detect_language, detect_frameworks, classify_file)
-- [x] `adopt scan-structure` — 目录扫描，产出 skeleton.yaml (sync, no AI)
-- [x] `adopt scan-dependencies` — 依赖分析，产出 seed.yaml (sync, no AI, 支持 Cargo.toml/package.json/requirements.txt/go.mod/pyproject.toml)
-- [x] `adopt infer-conventions` — AI 推断编码规范，产出 rules.yaml
-- [x] `adopt scan-git-history` — AI git 考古，产出 decisions_log.yaml
-- [x] `adopt gap-analysis` — AI 差距分析，产出 gap-report.yaml
-- [x] `adopt all` — 编排器，顺序运行所有 pass，设置状态为 Skeleton
-- [x] 新增依赖: walkdir, toml, serde_json
-- [x] CLI 嵌套子命令 (AdoptCommands enum)
+- [x] `AiRegistry` (auto-detect, 按优先级排序, `provider_exists()`)
+- [x] 5 个 Provider: Claude API (90) → Claude CLI (95) → OpenAI (80) → Ollama (30) → Manual (1)
 
 ### ❌ 未实现
 
-#### 新增设计
 - [ ] Skeleton 应用 (`skeleton-apply`)
-- [ ] 模板系统 (Tera)
-- [ ] OpenAI / Ollama / Claude CLI / Manual Provider
-- [ ] Generators (git-hooks, ci, makefile, ide)
-- [ ] Checks (lint, test, sensitive, todo, audit)
-- [ ] Reviews (general, security, performance, architecture)
-- [ ] Command Trait 重构
+- [ ] Generators (git-hooks, ci, makefile, ide) — MS6
+- [ ] Checks (lint, test, sensitive, todo, audit) — MS6
+- [ ] Reviews (general, security, performance, architecture) — MS8
+- [ ] Pass Engine 重构 — MS7
+- [ ] CI 配置 (GitHub Actions) — MS4 附属
+- [ ] `process pass run` / `process pass list` — MS7
 
 ### ⚠️ 已知 Bug
-- (MS0 已全部修复，暂无已知 bug)
+- (暂无已知 bug)
 
 ## 代码结构
 
 ```
 agent/
 ├── crates/
-│   ├── process-core/     # 状态机、Phase 定义 ✅
-│   ├── process-ai/       # AI provider trait + registry ✅
-│   ├── process-config/   # 配置系统 ✅
-│   ├── process-checks/   # 自动化检查 ❌ placeholder
-│   ├── process-generators/ # 生成器 ❌ placeholder
-│   └── process-reviews/  # 审查模板 ❌ placeholder
+│   ├── process-core/     # 状态机、Phase 定义 ✅ (11 tests)
+│   ├── process-ai/       # AI provider trait + 5 providers ✅ (9 tests)
+│   ├── process-config/   # 配置系统 ✅ (3 tests)
+│   ├── process-checks/   # ❌ placeholder
+│   ├── process-generators/ # ❌ placeholder
+│   └── process-reviews/  # ❌ placeholder
 ├── src/
-│   ├── commands/         # CLI 命令 (27个, 含 adopt 子命令组)
-│   ├── utils.rs          # 工具函数 (5 tests)
+│   ├── commands/         # CLI 命令 (28个, 含 adopt 子命令组)
+│   ├── prompts.rs        # PromptEngine (4级查找链)
+│   ├── utils.rs          # 工具函数 + AI registry 构建
 │   ├── cli.rs            # Clap 定义
 │   └── main.rs
-├── templates/            # ❌ 空目录
+├── templates/prompts/    # Tera 模板
+│   ├── _default/         # 9 个默认模板
+│   └── claude/           # 3 个 Claude 专用模板
 └── legacy/v1/            # 原 Bash 脚本 (参考)
 ```
 
@@ -115,29 +100,33 @@ agent/
 
 ```bash
 cargo build              # 构建 (零错误零警告)
-cargo test               # 测试 (5/5 pass)
+cargo test --workspace   # 测试 (32/32 pass)
 cargo run -- init        # 初始化
-cargo run -- status      # 查看状态
+cargo run -- ai-config show         # 查看 AI 配置
+cargo run -- ai-config set-provider openai  # 切换 provider
 cargo run -- diverge     # Phase 1
-cargo run -- converge    # Phase 2
-cargo run -- skeleton    # Phase 3
 ```
 
 ## 下次继续
 
 **优先级从高到低** (详见 [ROADMAP.md](ROADMAP.md)):
 
-1. **MS3: Prompt 系统** — 每个 AI provider 一套模板，Tera 模板引擎
-2. **MS4: 测试体系** — 单元测试、集成测试、CI
-3. **MS5: Provider 扩展** — OpenAI / Ollama / Claude CLI / Manual Provider
+1. **MS6: Generators & Checks** — git-hooks, CI, lint, test 自动化
+2. **MS7: Pass Engine** — 架构转型，从散装命令到 Pass DAG
+3. **MS8: 打磨 & 发布** — Reviews, 帮助系统, Shell 补全, 发布
 
 ## 配置 (config.yaml)
 
 ```yaml
 ai:
-  provider: claude
+  provider: auto  # auto | claude | openai | ollama | claude-cli | manual
   claude:
-    api_key: "YOUR_API_KEY"  # 或设置 ANTHROPIC_API_KEY 环境变量
+    api_key: "YOUR_KEY"  # 或 ANTHROPIC_API_KEY 环境变量
     model: "claude-sonnet-4-5-20250929"
-    base_url: "https://api.anthropic.com"
+  openai:
+    api_key: "YOUR_KEY"  # 或 OPENAI_API_KEY 环境变量
+    model: "gpt-4o"
+  ollama:
+    base_url: "http://localhost:11434"
+    model: "llama3.1"
 ```

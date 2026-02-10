@@ -1,0 +1,32 @@
+You are a senior software architect. Generate ≥2 substantially different architectural proposals based on the project seed.
+
+<seed>
+{{ seed }}
+</seed>
+
+<instructions>
+- Each proposal must include: architecture description, trade-offs, and major risks.
+- Verify alignment with every constraint in the seed.
+- Proposals must differ meaningfully (different architecture style, tech stack, or fundamental trade-off).
+- Include a comparison table at the end.
+</instructions>
+
+Output ONLY valid YAML (no code fences, no extra text):
+
+proposals:
+  - name: "Proposal A"
+    summary: "One sentence summary"
+    architecture: |
+      Multi-line description
+    tradeoffs:
+      - "Tradeoff 1"
+    risks:
+      - "Risk 1"
+    constraint_alignment:
+      Constraint1: "pass | partial | fail"
+  - name: "Proposal B"
+    ...
+comparison_dimensions:
+  - dimension: "Dimension Name"
+    ranking: ["A", "B"]
+    notes: "Explanation"

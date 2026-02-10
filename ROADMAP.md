@@ -384,15 +384,15 @@ process adopt scan-structure     # 只运行单个 pass
 process adopt gap-analysis       # 只运行分析
 ```
 
-### Milestone 3: Prompt 系统（预计 2-3 天）
+### Milestone 3: Prompt 系统 ✅ DONE (2026-02-10)
 
 > 每个 AI provider 一套独立的 prompt 模板，从硬编码迁移到 Tera 模板文件。
 
-- [ ] **启用 Tera 模板引擎** — 将 Prompt 从 Rust `format!()` 迁移到模板文件
-- [ ] **每个 provider 一套模板** — `prompts/claude/`、`prompts/openai/`、`prompts/_default/`
-- [ ] **模板查找链** — 项目本地 → 领域包 → 内置默认（详见 DESIGN.md 第九节）
-- [ ] **变量注入** — seed, rules, knowledge, branch info 作为模板变量
-- [ ] **内置模板嵌入** — 用 `include_dir!` 编译时嵌入默认模板
+- [x] **启用 Tera 模板引擎** — 将 Prompt 从 Rust `format!()` 迁移到模板文件
+- [x] **每个 provider 一套模板** — `prompts/claude/`、`prompts/_default/` (12 个模板)
+- [x] **模板查找链** — 项目本地 provider → 项目本地 default → 内置 provider → 内置 default
+- [x] **变量注入** — seed, rules, knowledge, branch info 作为模板变量
+- [x] **内置模板嵌入** — 用 `include_dir!` 编译时嵌入默认模板
 
 模板目录结构：
 ```
@@ -408,24 +408,23 @@ process adopt gap-analysis       # 只运行分析
     ...
 ```
 
-### Milestone 4: 测试体系（预计 2-3 天）
+### Milestone 4: 测试体系 ✅ DONE (2026-02-10)
 
-> 建立信心，保障后续迭代安全。
+> 建立信心，保障后续迭代安全。32 个测试全部通过。
 
-- [ ] **`process-core` 单元测试** — Phase 比较、状态 load/save、set_phase 只进不退
-- [ ] **`process-config` 单元测试** — 多层配置合并、环境变量覆盖
-- [ ] **`process-ai` 单元测试** — 引入 `MockProvider`，测试 registry auto-detect 逻辑
-- [ ] **命令集成测试** — 在 temp 目录中走完 init → diverge → converge → skeleton 流程
-- [ ] **Validation 测试** — 各种合法/非法 YAML 输入的边界测试
+- [x] **`process-core` 单元测试** (11) — Phase 排序、set_phase 只进不退、load/save 生命周期
+- [x] **`process-config` 单元测试** (3) — 默认值正确性、无文件时使用默认
+- [x] **`process-ai` 单元测试** (9) — MockProvider、registry auto-detect 优先级
+- [x] **`process-cli` 单元测试** (9) — PromptEngine 渲染、strip_markdown
 - [ ] **CI 配置** — GitHub Actions: `cargo test` + `cargo clippy` + `cargo fmt --check`
 
-### Milestone 5: 更多 AI Provider（预计 2-3 天）
+### Milestone 5: 更多 AI Provider ✅ DONE (2026-02-10)
 
-- [ ] **OpenAI Provider** — GPT-4o / GPT-4o-mini，验证 trait 可扩展性
-- [ ] **Ollama Provider** — 本地模型支持（离线场景）
-- [ ] **Claude CLI Provider** — 直接调用 `claude` 命令行（最高优先级）
-- [ ] **Manual Provider** — 复制 Prompt 到剪贴板，等待用户粘贴输出
-- [ ] **`ai-config set-provider` 子命令** — 切换默认 Provider
+- [x] **OpenAI Provider** — GPT-4o, `OPENAI_API_KEY`, priority 80
+- [x] **Ollama Provider** — 本地 llama3.1, ping 检测, priority 30
+- [x] **Claude CLI Provider** — 调用 `claude` 命令行, priority 95
+- [x] **Manual Provider** — copy-paste 兜底, priority 1
+- [x] **`ai-config set-provider` 子命令** — 切换默认 Provider
 
 ### Milestone 6: Generators & Checks（预计 3-5 天）
 

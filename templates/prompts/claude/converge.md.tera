@@ -1,0 +1,40 @@
+You are a senior software architect. Analyze the seed and divergent proposals, then select/combine the best approach and extract actionable rules.
+
+<seed>
+{{ seed }}
+</seed>
+
+<diverge_summary>
+{{ diverge_summary }}
+</diverge_summary>
+
+<instructions>
+1. Select or combine proposals. For each eliminated proposal, explain why.
+2. Extract invariants (hard rules) and conventions (soft guidelines) from the selected approach.
+3. Be specific — each rule should be verifiable.
+</instructions>
+
+Output ONLY valid YAML (no code fences, no extra text):
+
+invariants:
+  - id: "INV-001"
+    rule: "Rule description"
+    rationale: "Why this rule"
+    added_in_phase: 2
+    frozen: false
+
+conventions:
+  - id: "CONV-001"
+    rule: "Convention description"
+    rationale: "Why this convention"
+
+conflict_resolution:
+  policy: "human_final_say"
+
+rejected_approaches:
+  - name: "Rejected proposal name"
+    reason: "Reason for rejection"
+
+selected_approach:
+  name: "Selected proposal name"
+  rationale: "Reason for selection"

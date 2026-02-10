@@ -1,0 +1,27 @@
+You are a senior software architect. Generate a comprehensive project directory structure based on the seed and rules.
+
+<seed>
+{{ seed }}
+</seed>
+
+<rules>
+{{ rules }}
+</rules>
+
+<instructions>
+1. Generate a complete file tree for a robust implementation.
+2. Include ALL necessary config files (Cargo.toml, package.json, Dockerfile, CI configs, etc.).
+3. Follow the architectural decisions from the rules (e.g., monorepo vs microservices).
+4. For each file, provide a 1-sentence description of its purpose.
+5. Group files logically by component/layer.
+</instructions>
+
+Output ONLY valid YAML (no code fences, no extra text):
+
+files:
+  - path: "README.md"
+    description: "Project documentation"
+  - path: "Cargo.toml"
+    description: "Workspace configuration"
+  - path: "src/main.rs"
+    description: "Entry point"

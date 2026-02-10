@@ -1,7 +1,15 @@
 use std::sync::Arc;
 use anyhow::Result;
 use process_config::config::Config;
-use process_ai::{registry::AiRegistry, providers::claude::ClaudeProvider, provider::AiProvider};
+use process_ai::{
+    registry::AiRegistry,
+    provider::AiProvider,
+    providers::claude::ClaudeProvider,
+    providers::openai::OpenAiProvider,
+    providers::ollama::OllamaProvider,
+    providers::claude_cli::ClaudeCliProvider,
+    providers::manual::ManualProvider,
+};
 
 /// Strip markdown code block markers from AI responses
 pub fn strip_markdown_code_block(content: &str) -> &str {
@@ -30,15 +38,21 @@ pub fn strip_markdown_code_block(content: &str) -> &str {
 pub fn create_ai_registry(config: &Config) -> AiRegistry {
     let mut registry = AiRegistry::new();
     
-    if let Some(claude_config) = config.ai.claude.clone() {
-        registry.register(ClaudeProvider::new(Some(claude_config)));
-    }
-    
-    // Add other providers here when implemented
-    // if let Some(openai_config) = config.ai.openai.clone() {
-    //     registry.register(OpenAiProvider::new(Some(openai_config)));
-    // }
-    
+    // Claude API provider (priority 90 when key available)
+    registry.register(ClaudeProvider::new(config.ai.claude.clone()));
+
+    // OpenAI provider (priority 80 when key available)
+    registry.register(OpenAiProvider::new(config.ai.openai.clone()));
+
+    // Ollama local provider (priority 30, always registered)
+    registry.register(OllamaProvider::new(config.ai.ollama.clone()));
+
+    // Claude CLI provider (priority 95 when binary found)
+    registry.register(ClaudeCliProvider::new());
+
+    // Manual provider (priority 1, always available on TTY)
+    registry.register(ManualProvider::new());
+
     registry
 }
 

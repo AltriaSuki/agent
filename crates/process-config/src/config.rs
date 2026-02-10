@@ -97,3 +97,40 @@ impl Config {
         Ok(parsed)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_config() {
+        let config = Config::default();
+        assert_eq!(config.ai.provider, "auto");
+        assert!(config.ai.claude.is_none());
+        assert!(config.ai.openai.is_none());
+        assert!(config.ai.ollama.is_none());
+        assert!(config.settings.auto_save);
+        assert_eq!(config.settings.timeout_secs, 120);
+    }
+
+    #[test]
+    fn test_load_returns_defaults_when_no_files() {
+        // When no config files exist, should use defaults
+        let config = Config::load().unwrap();
+        assert_eq!(config.ai.provider, "auto");
+        assert!(config.settings.auto_save);
+    }
+
+    #[test]
+    fn test_provider_config_fields() {
+        let pc = ProviderConfig {
+            api_key: Some("test-key".to_string()),
+            model: Some("gpt-4o".to_string()),
+            base_url: Some("https://api.example.com".to_string()),
+            max_tokens: Some(8192),
+        };
+        assert_eq!(pc.api_key.unwrap(), "test-key");
+        assert_eq!(pc.max_tokens.unwrap(), 8192);
+    }
+}
+

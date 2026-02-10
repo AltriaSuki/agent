@@ -119,6 +119,11 @@ pub enum AiConfigCommands {
     Show,
     /// Test AI connection
     Test,
+    /// Set the default AI provider
+    SetProvider {
+        /// Provider name: claude, openai, ollama, claude-cli, manual, auto
+        name: String,
+    },
 }
 
 #[derive(Subcommand)]

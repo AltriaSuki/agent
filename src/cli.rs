@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
 #[command(name = "process")]
@@ -123,6 +123,23 @@ pub enum Commands {
     /// Pass engine commands
     #[command(subcommand)]
     Pass(PassCommands),
+
+    /// Show categorized command guide
+    Guide,
+
+    /// Generate shell completions
+    Completions {
+        /// Shell type
+        #[arg(value_enum)]
+        shell: ShellType,
+    },
+}
+
+#[derive(Clone, ValueEnum)]
+pub enum ShellType {
+    Bash,
+    Zsh,
+    Fish,
 }
 
 #[derive(Subcommand)]
@@ -154,6 +171,9 @@ pub enum BranchCommands {
     Review {
         /// Branch name
         name: String,
+        /// Run a specific review role only (general, security, performance, architecture)
+        #[arg(short, long)]
+        role: Option<String>,
     },
     /// Adversarial abuse testing
     Abuse {

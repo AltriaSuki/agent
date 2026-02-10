@@ -31,3 +31,4 @@ pub mod adopt_all;
 pub mod generate;
 pub mod check;
 pub mod pass;
+pub mod help;

@@ -4,12 +4,31 @@ mod decision_log;
 mod prompts;
 mod utils;
 
-use clap::Parser;
-use cli::{AdoptCommands, BranchCommands, Cli, Commands};
-use anyhow::Result;
+use clap::{CommandFactory, Parser};
+use clap_complete::{generate, shells};
+use cli::{AdoptCommands, BranchCommands, Cli, Commands, ShellType};
+use colored::Colorize;
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
+    miette::set_hook(Box::new(|_| {
+        Box::new(
+            miette::MietteHandlerOpts::new()
+                .terminal_links(true)
+                .unicode(true)
+                .context_lines(2)
+                .build(),
+        )
+    }))
+    .ok();
+
+    if let Err(err) = run().await {
+        eprintln!("{} {:#}", "error:".red().bold(), err);
+        std::process::exit(1);
+    }
+}
+
+async fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
@@ -34,7 +53,7 @@ async fn main() -> Result<()> {
         Commands::Branch(cmd) => match cmd {
             BranchCommands::New { name } => commands::branch_new::execute(&name)?,
             BranchCommands::Start { name } => commands::branch_start::execute(&name)?,
-            BranchCommands::Review { name } => commands::branch_review::execute(&name).await?,
+            BranchCommands::Review { name, role } => commands::branch_review::execute(&name, role.as_deref()).await?,
             BranchCommands::Abuse { name } => commands::branch_abuse::execute(&name).await?,
             BranchCommands::Gate { name } => commands::branch_gate::execute(&name)?,
             BranchCommands::Merge { name } => commands::branch_merge::execute(&name)?,
@@ -67,6 +86,16 @@ async fn main() -> Result<()> {
         Commands::Generate(cmd) => commands::generate::execute(&cmd)?,
         Commands::Check(cmd) => commands::check::execute(&cmd)?,
         Commands::Pass(cmd) => commands::pass::execute(&cmd)?,
+        Commands::Guide => commands::help::execute(),
+        Commands::Completions { shell } => {
+            let mut cmd = Cli::command();
+            let name = cmd.get_name().to_string();
+            match shell {
+                ShellType::Bash => generate(shells::Bash, &mut cmd, &name, &mut std::io::stdout()),
+                ShellType::Zsh => generate(shells::Zsh, &mut cmd, &name, &mut std::io::stdout()),
+                ShellType::Fish => generate(shells::Fish, &mut cmd, &name, &mut std::io::stdout()),
+            }
+        }
     }
 
     Ok(())

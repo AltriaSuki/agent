@@ -8,14 +8,14 @@
 
 将 `legacy/v1/process-cli.sh` (1,522 行 Bash) 迁移为可扩展的 Rust CLI 工具。
 
-## 当前状态: ~75% 完成
+## 当前状态: ~85% 完成
 
 ### ✅ 已完成
 
 #### 基础架构
 - [x] Cargo Workspace 设置 (6 crates)
 - [x] 核心 crates: `process-core`, `process-ai`, `process-config`
-- [x] CLI 框架 (clap) — 22 个子命令
+- [x] CLI 框架 (clap) — 31 个子命令
 - [x] 状态机 (`Phase` enum, `ProcessState`)
 - [x] 配置系统 (默认值 → 全局 → 项目 → 环境变量)
 
@@ -55,6 +55,32 @@
 - [x] `ai-config set-provider` 子命令 ✨ NEW
 - [x] `ai-config show` 增强 — 显示所有已注册 provider 可用性 ✨ NEW
 
+#### MS6: Generators & Checks ✅ DONE (2026-02-10)
+- [x] GitHooksGenerator — pre-commit / pre-push
+- [x] CiCdGenerator — GitHub Actions workflow
+- [x] MakefileGenerator — 标准 targets
+- [x] IdeGenerator — VS Code settings
+- [x] SensitiveInfoCheck — API key 扫描
+- [x] TodoCheck — TODO/FIXME 检测
+- [x] LintCheck — cargo clippy / eslint / ruff
+- [x] TestCheck — cargo test / npm test / pytest
+
+#### MS7: Pass Engine 核心架构 ✅ DONE (2026-02-10)
+- [x] Pass trait 定义 (name, requires, produces, kind, description, run)
+- [x] ArtifactKind enum + PassContext
+- [x] manifest.yaml 系统 (artifact registry with hash, timestamp, path)
+- [x] PassManager — 依赖解析 + DAG 执行
+- [x] CLI 集成: `process pass run` / `process pass list` / `process pass run-all`
+
+#### MS8: 打磨 & 发布 🟡 进行中 (2026-02-10)
+- [x] Review Templates — `process-reviews` crate (general / security / performance / architecture)
+- [x] `branch review --role` — 按角色单独运行或全部运行
+- [x] 帮助系统 — `process guide` 按类别分组显示命令
+- [x] Shell 补全 — `process completions bash|zsh|fish`
+- [x] 错误信息美化 — miette fancy 错误格式
+- [ ] README 完善 — 安装说明、Quick Start
+- [ ] 发布 — `cargo install` / Homebrew / 预编译 Binary
+
 ### AI 系统
 - [x] `AiProvider` trait + `CompletionRequest/Response`
 - [x] `AiRegistry` (auto-detect, 按优先级排序, `provider_exists()`)
@@ -63,12 +89,9 @@
 ### ❌ 未实现
 
 - [ ] Skeleton 应用 (`skeleton-apply`)
-- [ ] Generators (git-hooks, ci, makefile, ide) — MS6
-- [ ] Checks (lint, test, sensitive, todo, audit) — MS6
-- [ ] Reviews (general, security, performance, architecture) — MS8
-- [ ] Pass Engine 重构 — MS7
 - [ ] CI 配置 (GitHub Actions) — MS4 附属
-- [ ] `process pass run` / `process pass list` — MS7
+- [ ] README 完善 — 安装说明、Quick Start
+- [ ] 发布 — `cargo install` / Homebrew / 预编译 Binary
 
 ### ⚠️ 已知 Bug
 - (暂无已知 bug)
@@ -81,17 +104,17 @@ agent/
 │   ├── process-core/     # 状态机、Phase 定义 ✅ (11 tests)
 │   ├── process-ai/       # AI provider trait + 5 providers ✅ (9 tests)
 │   ├── process-config/   # 配置系统 ✅ (3 tests)
-│   ├── process-checks/   # ❌ placeholder
-│   ├── process-generators/ # ❌ placeholder
-│   └── process-reviews/  # ❌ placeholder
+│   ├── process-checks/   # 自动化检查 ✅
+│   ├── process-generators/ # 文件生成器 ✅
+│   └── process-reviews/  # 4 角色 Review 模板 ✅
 ├── src/
-│   ├── commands/         # CLI 命令 (28个, 含 adopt 子命令组)
+│   ├── commands/         # CLI 命令 (31个, 含 adopt/branch/pass 子命令组)
 │   ├── prompts.rs        # PromptEngine (4级查找链)
 │   ├── utils.rs          # 工具函数 + AI registry 构建
 │   ├── cli.rs            # Clap 定义
-│   └── main.rs
+│   └── main.rs           # miette 错误美化
 ├── templates/prompts/    # Tera 模板
-│   ├── _default/         # 9 个默认模板
+│   ├── _default/         # 13 个默认模板 (含 4 个 review 角色模板)
 │   └── claude/           # 3 个 Claude 专用模板
 └── legacy/v1/            # 原 Bash 脚本 (参考)
 ```
@@ -111,9 +134,10 @@ cargo run -- diverge     # Phase 1
 
 **优先级从高到低** (详见 [ROADMAP.md](ROADMAP.md)):
 
-1. **MS6: Generators & Checks** — git-hooks, CI, lint, test 自动化
-2. **MS7: Pass Engine** — 架构转型，从散装命令到 Pass DAG
-3. **MS8: 打磨 & 发布** — Reviews, 帮助系统, Shell 补全, 发布
+1. **MS8 收尾** — README 完善、发布打包 (`cargo install` / Homebrew)
+2. **MS9: Pass 插件生态** — 外部 Pass 发现、JSON-RPC 脚本桥、插件管理
+3. **MS10: 决策周期管理** — 多轮决策周期、周期隔离 + 共享知识
+4. **MS11: 知识传递系统** — 跨周期/跨项目知识积累
 
 ## 配置 (config.yaml)
 

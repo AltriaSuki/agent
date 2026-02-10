@@ -1,7 +1,8 @@
 use crate::provider::{AiProvider, CompletionRequest, CompletionResponse};
 use anyhow::{Result, Context, anyhow};
 use async_trait::async_trait;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::io::Write;
 
 /// Claude CLI Provider — calls the `claude` command-line tool directly.
 /// This is the highest-priority provider when available because it uses
@@ -43,13 +44,25 @@ impl AiProvider for ClaudeCliProvider {
         let binary = Self::find_claude_binary()
             .ok_or_else(|| anyhow!("Claude CLI binary not found in PATH"))?;
 
-        let output = Command::new(&binary)
+        let mut child = Command::new(&binary)
             .arg("--print")
             .arg("--output-format")
             .arg("text")
-            .arg(&request.prompt)
-            .output()
-            .context("Failed to execute claude CLI")?;
+            .arg("-p")
+            .arg("-")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .context("Failed to spawn claude CLI")?;
+
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin.write_all(request.prompt.as_bytes())
+                .context("Failed to write prompt to claude CLI stdin")?;
+        }
+
+        let output = child.wait_with_output()
+            .context("Failed to wait for claude CLI")?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);

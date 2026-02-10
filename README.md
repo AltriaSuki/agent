@@ -9,7 +9,7 @@ Process CLI 是一个通用决策流水线引擎。它通过结构化的决策�
 
 ```bash
 # 从源码构建
-git clone https://github.com/anthropics/process-cli.git
+git clone https://github.com/AltriaSuki/process-cli.git
 cd process-cli
 cargo install --path .
 ```

@@ -30,3 +30,4 @@ pub mod adopt_gap_analysis;
 pub mod adopt_all;
 pub mod generate;
 pub mod check;
+pub mod pass;

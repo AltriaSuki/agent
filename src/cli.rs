@@ -119,6 +119,10 @@ pub enum Commands {
     /// Run automated checks
     #[command(subcommand)]
     Check(CheckCommands),
+
+    /// Pass engine commands
+    #[command(subcommand)]
+    Pass(PassCommands),
 }
 
 #[derive(Subcommand)]
@@ -218,4 +222,17 @@ pub enum CheckCommands {
     Test,
     /// Run all checks
     All,
+}
+
+#[derive(Subcommand)]
+pub enum PassCommands {
+    /// Run a specific pass
+    Run {
+        /// Pass name (e.g., "diverge.generate")
+        name: String,
+    },
+    /// List all available passes
+    List,
+    /// Run all passes in dependency order
+    RunAll,
 }

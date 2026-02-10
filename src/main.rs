@@ -66,6 +66,7 @@ async fn main() -> Result<()> {
         Commands::Done => commands::done::execute()?,
         Commands::Generate(cmd) => commands::generate::execute(&cmd)?,
         Commands::Check(cmd) => commands::check::execute(&cmd)?,
+        Commands::Pass(cmd) => commands::pass::execute(&cmd)?,
     }
 
     Ok(())

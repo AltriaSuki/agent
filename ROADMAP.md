@@ -442,31 +442,31 @@ process adopt gap-analysis       # 只运行分析
 - [x] `LintCheck` — 调用 cargo clippy / eslint / ruff
 - [x] `TestCheck` — 调用 cargo test / npm test / pytest
 
-### Milestone 7: Pass Engine 核心（预计 4-6 天）⭐⭐ 架构转型
+### Milestone 7: Pass Engine 核心 ✅ DONE (2026-02-10) ⭐⭐ 架构转型
 
-> 从散装命令重构为 Pass Engine。这是实现 DESIGN.md 愿景的关键里程碑。
+> 从散装命令重构为 Pass Engine。实现 DESIGN.md 愿景的关键里程碑。
 
 #### 7a. Pass Trait 与 Artifact 模型
-- [ ] **定义 `Pass` trait** — name, requires, produces, kind, interaction, run
-- [ ] **定义 `ArtifactKind` enum** — Seed, Proposals, Rules, Skeleton, DecisionLog, Custom(String) 等
-- [ ] **`PassContext`** — 读写 artifact、访问配置、调用 AI 的统一上下文
+- [x] **定义 `Pass` trait** — name, requires, produces, kind, description, run
+- [x] **定义 `ArtifactKind` enum** — Seed, Proposals, Rules, Skeleton, DecisionLog, Custom(String) 等
+- [x] **`PassContext`** — 读写 artifact、访问配置的统一上下文
 
 #### 7b. Manifest 系统
-- [ ] **`manifest.yaml` 结构** — artifact 登记簿（来源、版本、hash、依赖）
-- [ ] **Manifest 读写** — 每个 pass 执行后自动更新 manifest
-- [ ] **新鲜度检查** — 判断 artifact 是否需要重新生成（类似 Make）
+- [x] **`manifest.yaml` 结构** — artifact 登记簿（来源、时间、hash、路径）
+- [x] **Manifest 读写** — 每个 pass 执行后自动更新 manifest
+- [x] **新鲜度检查** — 判断 artifact 是否需要重新生成
 
 #### 7c. PassManager（调度器）
-- [ ] **Pass 注册** — 内置 pass 的静态注册
-- [ ] **依赖解析** — 拓扑排序，构建 DAG
-- [ ] **执行引擎** — 按序执行 pass，支持并行执行无依赖的 pass
-- [ ] **错误处理** — pass 失败时停止，报告哪个 pass 在哪个 artifact 上失败
+- [x] **Pass 注册** — 内置 pass 的静态注册
+- [x] **依赖解析** — 拓扑排序，构建 DAG
+- [x] **执行引擎** — 按序执行 pass，支持按 phase 前缀过滤
+- [x] **错误处理** — pass 失败时停止，报告哪个 pass 在哪个 artifact 上失败
 
-#### 7d. 迁移现有命令
-- [ ] **将现有 9 个命令重构为 Pass** — init→seed.init, diverge→diverge.generate 等
-- [ ] **Phase 作为 preset** — `process diverge` 展开为 `diverge.*` 的所有 pass
-- [ ] **`process pass run <name>`** — 手动运行单个 pass 的命令
-- [ ] **`process pass list`** — 列出所有可用 pass
+#### 7d. CLI 集成
+- [x] **`process pass run <name>`** — 手动运行单个 pass
+- [x] **`process pass list`** — 列出所有可用 pass
+- [x] **`process pass run-all`** — 按依赖顺序执行所有 pass
+- [ ] **将现有 9 个命令重构为 Pass** — 待后续迭代迁移
 
 ### Milestone 8: 打磨 & 发布（预计 2-3 天）
 

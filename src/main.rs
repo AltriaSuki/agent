@@ -53,6 +53,7 @@ async fn run() -> anyhow::Result<()> {
         Commands::Branch(cmd) => match cmd {
             BranchCommands::New { name } => commands::branch_new::execute(&name)?,
             BranchCommands::Start { name } => commands::branch_start::execute(&name)?,
+            BranchCommands::Implement { name } => commands::branch_implement::execute(&name).await?,
             BranchCommands::Review { name, role } => commands::branch_review::execute(&name, role.as_deref()).await?,
             BranchCommands::Abuse { name } => commands::branch_abuse::execute(&name).await?,
             BranchCommands::Gate { name } => commands::branch_gate::execute(&name)?,

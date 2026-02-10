@@ -62,6 +62,55 @@ pub async fn get_ai_provider(config: &Config) -> Result<Arc<dyn AiProvider>> {
     registry.get_provider(&config.ai.provider).await
 }
 
+/// Load AI provider with optional branch-level override.
+/// If the branch YAML contains an `ai_config` section, it overrides the global config.
+pub async fn get_branch_ai_provider(
+    global_config: &Config,
+    branch_content: &str,
+) -> Result<(Arc<dyn AiProvider>, String)> {
+    let branch_yaml: serde_yaml::Value = serde_yaml::from_str(branch_content)
+        .unwrap_or(serde_yaml::Value::Null);
+
+    if let Some(ai_cfg) = branch_yaml.get("ai_config") {
+        // Build a Config with branch overrides merged on top of global
+        let mut config = global_config.clone();
+
+        if let Some(p) = ai_cfg.get("provider").and_then(|v| v.as_str()) {
+            config.ai.provider = p.to_string();
+        }
+
+        // Override provider-specific config
+        if let Some(claude) = ai_cfg.get("claude") {
+            let mut pc = config.ai.claude.clone().unwrap_or(process_config::config::ProviderConfig {
+                api_key: None, model: None, base_url: None, max_tokens: None,
+            });
+            if let Some(v) = claude.get("api_key").and_then(|v| v.as_str()) { pc.api_key = Some(v.to_string()); }
+            if let Some(v) = claude.get("model").and_then(|v| v.as_str()) { pc.model = Some(v.to_string()); }
+            if let Some(v) = claude.get("base_url").and_then(|v| v.as_str()) { pc.base_url = Some(v.to_string()); }
+            if let Some(v) = claude.get("max_tokens").and_then(|v| v.as_u64()) { pc.max_tokens = Some(v as usize); }
+            config.ai.claude = Some(pc);
+        }
+        if let Some(openai) = ai_cfg.get("openai") {
+            let mut pc = config.ai.openai.clone().unwrap_or(process_config::config::ProviderConfig {
+                api_key: None, model: None, base_url: None, max_tokens: None,
+            });
+            if let Some(v) = openai.get("api_key").and_then(|v| v.as_str()) { pc.api_key = Some(v.to_string()); }
+            if let Some(v) = openai.get("model").and_then(|v| v.as_str()) { pc.model = Some(v.to_string()); }
+            if let Some(v) = openai.get("base_url").and_then(|v| v.as_str()) { pc.base_url = Some(v.to_string()); }
+            if let Some(v) = openai.get("max_tokens").and_then(|v| v.as_u64()) { pc.max_tokens = Some(v as usize); }
+            config.ai.openai = Some(pc);
+        }
+
+        let provider_name = config.ai.provider.clone();
+        let provider = get_ai_provider(&config).await?;
+        Ok((provider, provider_name))
+    } else {
+        let name = global_config.ai.provider.clone();
+        let provider = get_ai_provider(global_config).await?;
+        Ok((provider, name))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

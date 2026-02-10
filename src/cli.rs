@@ -167,6 +167,11 @@ pub enum BranchCommands {
         /// Branch name
         name: String,
     },
+    /// AI-assisted implementation based on hypothesis
+    Implement {
+        /// Branch name
+        name: String,
+    },
     /// Multi-role AI review
     Review {
         /// Branch name

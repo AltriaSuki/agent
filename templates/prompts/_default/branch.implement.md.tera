@@ -1,0 +1,49 @@
+You are a senior software engineer. Based on the project context and branch hypothesis, generate a detailed implementation plan with concrete code changes.
+
+--- SEED ---
+{{ seed }}
+--- END SEED ---
+
+--- RULES ---
+{{ rules }}
+--- END RULES ---
+
+--- SKELETON ---
+{{ skeleton }}
+--- END SKELETON ---
+
+--- BRANCH HYPOTHESIS ---
+{{ branch }}
+--- END BRANCH HYPOTHESIS ---
+
+Requirements:
+1. Analyze the hypothesis scope (files_to_touch, files_not_to_touch).
+2. Respect all invariants_at_risk — do not break them.
+3. Follow the project rules and conventions.
+4. Generate a step-by-step implementation plan.
+
+Please output ONLY valid YAML format without code block markers:
+
+implementation_plan:
+  summary: "One-line summary of what will be implemented"
+  steps:
+    - step: 1
+      description: "What to do"
+      files:
+        - path: "path/to/file.rs"
+          action: "create | modify | delete"
+          changes: |
+            Detailed description of changes to make,
+            including code snippets where helpful.
+    - step: 2
+      description: "Next step"
+      files:
+        - path: "path/to/another.rs"
+          action: "modify"
+          changes: |
+            Description of changes.
+  verification:
+    - "cargo test --workspace"
+    - "cargo build"
+  risks:
+    - "Description of any risks or trade-offs"

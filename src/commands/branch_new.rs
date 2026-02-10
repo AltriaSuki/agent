@@ -52,6 +52,13 @@ estimated_complexity: "medium"
 
 status: "defined"
 # defined → implementing → reviewing → abuse-testing → merged | rejected
+
+# ai_config: (optional, override global AI config for this branch)
+#   provider: "claude"
+#   claude:
+#     api_key: "sk-xxx"
+#     model: "claude-opus-4-6"
+#     base_url: "https://your-proxy.com"
 "#);
 
     fs::write(&branch_path, &template)

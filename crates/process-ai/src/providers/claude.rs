@@ -25,24 +25,21 @@ impl ClaudeProvider {
     }
 
     fn get_api_key(&self) -> Result<String> {
-        // Priority: Env Var > Config
-        if let Ok(key) = env::var("ANTHROPIC_API_KEY") {
-            return Ok(key);
-        }
-        self.config.api_key.clone().ok_or_else(|| anyhow!("Missing ANTHROPIC_API_KEY"))
+        // Priority: Config > Env Var (config key and base_url are paired)
+        self.config.api_key.clone()
+            .or_else(|| env::var("ANTHROPIC_API_KEY").ok())
+            .ok_or_else(|| anyhow!("Missing ANTHROPIC_API_KEY"))
     }
 
     fn get_model(&self) -> String {
-        env::var("ANTHROPIC_MODEL")
-            .ok()
-            .or(self.config.model.clone())
+        self.config.model.clone()
+            .or_else(|| env::var("ANTHROPIC_MODEL").ok())
             .unwrap_or_else(|| "claude-sonnet-4-5-20250929".to_string())
     }
 
     fn get_base_url(&self) -> String {
-        env::var("ANTHROPIC_BASE_URL")
-            .ok()
-            .or(self.config.base_url.clone())
+        self.config.base_url.clone()
+            .or_else(|| env::var("ANTHROPIC_BASE_URL").ok())
             .unwrap_or_else(|| "https://api.anthropic.com".to_string())
             .trim_end_matches('/')
             .to_string()
@@ -80,10 +77,20 @@ impl AiProvider for ClaudeProvider {
             ]
         });
 
-        let response = self.client.post(&url)
-            .header("x-api-key", api_key)
+        let is_custom_endpoint = self.config.base_url.is_some()
+            || env::var("ANTHROPIC_BASE_URL").is_ok();
+
+        let mut req = self.client.post(&url)
             .header("anthropic-version", "2023-06-01")
-            .header("content-type", "application/json")
+            .header("content-type", "application/json");
+
+        if is_custom_endpoint {
+            req = req.header("Authorization", format!("Bearer {}", api_key));
+        } else {
+            req = req.header("x-api-key", &api_key);
+        }
+
+        let response = req
             .json(&payload)
             .send()
             .await

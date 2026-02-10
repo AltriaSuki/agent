@@ -1,0 +1,29 @@
+# Branch Hypothesis: GAP-002
+hypothesis: "Adding a repeatedly request when request fails feature will make the system more robust to use"
+# "Adding X feature will make Y possible"
+
+scope:
+  files_to_touch: []
+  files_not_to_touch: []
+
+invariants_at_risk:
+  - ""
+# Which invariants might be affected
+
+rollback_plan: |
+  git revert to branch start point
+  Verify: <specific command>
+  Impact scope: <which modules>
+
+dependencies:
+  blocked_by: []
+  blocks: []
+
+priority: 2
+# 1-10, lower number = higher priority
+
+estimated_complexity: "medium"
+# small | medium | large
+
+status: "implementing"
+# defined → implementing → reviewing → abuse-testing → merged | rejected

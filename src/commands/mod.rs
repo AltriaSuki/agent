@@ -14,6 +14,7 @@ pub mod learn;
 pub mod friction;
 pub mod branch_new;
 pub mod branch_start;
+pub mod branch_implement;
 pub mod branch_review;
 pub mod branch_abuse;
 pub mod branch_gate;

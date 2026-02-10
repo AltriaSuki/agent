@@ -1,0 +1,31 @@
+You are a software architect. Please read the following project seed and generate ≥2 independent technical proposals.
+
+--- SEED ---
+{{ seed }}
+--- END SEED ---
+
+Requirements:
+1. Each proposal must include: Architecture sketch (text description), Trade-offs, and Major Risks.
+2. Check alignment with each Constraint.
+3. Proposals must be substantially different (different architecture/tech stack/trade-offs).
+4. Finally, generate a comparison table.
+
+Please output ONLY valid YAML format without code block markers or extra explanation:
+
+proposals:
+  - name: "Proposal A"
+    summary: "One sentence summary"
+    architecture: |
+      Multi-line description
+    tradeoffs:
+      - "Tradeoff 1"
+    risks:
+      - "Risk 1"
+    constraint_alignment:
+      Constraint1: "pass | partial | fail"
+  - name: "Proposal B"
+    ...
+comparison_dimensions:
+  - dimension: "Dimension Name"
+    ranking: ["A", "B"]
+    notes: "Explanation"

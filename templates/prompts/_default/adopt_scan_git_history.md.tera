@@ -1,0 +1,33 @@
+You are a software archaeologist analyzing a project's git history to identify key architectural decisions.
+
+Based on the commit history below, produce a decisions_log.yaml identifying the most significant architectural and design decisions visible in the history.
+
+Output ONLY valid YAML in this format (no code block markers):
+
+decisions:
+  - phase_transition: "git-archaeology"
+    decision: "Short description of the decision"
+    reasoning: "Evidence from commits that suggests this decision"
+    confidence: "high|medium|low"
+    revisit_trigger: "When this decision should be reconsidered"
+    decided_by: "git-archaeology"
+    timestamp: "inferred date or unknown"
+
+Focus on:
+- Major dependency additions or removals
+- Architectural pattern changes (monolith → microservices, etc.)
+- Framework migrations
+- Build system changes
+- Significant refactors
+- API design decisions
+
+Limit to the 10 most significant decisions.
+
+--- COMMIT HISTORY ---
+{{ commit_log }}
+--- END COMMIT HISTORY ---
+
+{% if merge_log %}--- MERGE COMMITS ---
+{{ merge_log }}
+--- END MERGE COMMITS ---
+{% endif %}

@@ -6,8 +6,10 @@ use process_ai::provider::CompletionRequest;
 use std::fs;
 use std::path::Path;
 use crate::utils::{strip_markdown_code_block, get_ai_provider};
+use crate::decision_log;
+use crate::prompts::PromptEngine;
 
-pub async fn execute() -> Result<()> {
+pub async fn execute(skip_decision: bool) -> Result<()> {
     println!("{}", "Phase 3: Skeleton — Generating Project Structure".bold().blue());
 
     // 1. Check State
@@ -29,37 +31,15 @@ pub async fn execute() -> Result<()> {
     let rules_content = fs::read_to_string(rules_path).context("Failed to read rules.yaml")?;
 
     // 3. Prepare Prompt
-    let prompt = format!(r#"You are a software architect. Please parse the Seed and Rules, then generate a comprehensive project directory structure (skeleton).
-
---- SEED ---
-{}
---- END SEED ---
-
---- RULES ---
-{}
---- END RULES ---
-
-Requirements:
-1. Generate a complete file tree for a robust basic implementation.
-2. Include ALL necessary config files (e.g., Cargo.toml, package.json, Dockerfile, etc.).
-3. Follow the architectural decision from RULES (e.g., Monorepo vs Microservices).
-4. For each file, provide a 1-sentence description of its purpose.
-
-Please output ONLY valid YAML format without code block markers:
-
-files:
-  - path: "README.md"
-    description: "Project documentation"
-  - path: "Cargo.toml"
-    description: "Workspace configuration"
-  - path: "src/main.rs"
-    description: "Entry point"
-  # ... detailed tree
-"#, seed_content, rules_content);
+    let config = Config::load()?;
+    let engine = PromptEngine::new(&config.ai.provider);
+    let mut ctx = tera::Context::new();
+    ctx.insert("seed", &seed_content);
+    ctx.insert("rules", &rules_content);
+    let prompt = engine.render("skeleton", &ctx)?;
 
     // 4. Call AI
     println!("Calling AI to generate skeleton...");
-    let config = Config::load()?;
     let provider = get_ai_provider(&config).await?;
     println!("Using Provider: {}", provider.name().cyan());
 
@@ -77,7 +57,10 @@ files:
     fs::write(output_path, cleaned_content).context("Failed to write skeleton.yaml")?;
     println!("{} Output saved to {}", "✔".green(), output_path.display());
 
-    // 7. Update State
+    // 7. Decision recording
+    decision_log::prompt_decision("converge → skeleton", skip_decision)?;
+
+    // 8. Update State
     state.set_phase(Phase::Skeleton);
     state.save()?;
     println!("{} State updated to Skeleton", "✔".green());

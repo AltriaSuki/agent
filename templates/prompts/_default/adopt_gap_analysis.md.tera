@@ -1,0 +1,40 @@
+You are a senior software architect performing a gap analysis on an adopted project.
+
+Review the available artifacts and identify:
+1. Undocumented architectural decisions
+2. Missing test coverage areas
+3. Potential technical debt
+4. Security concerns
+5. Missing documentation
+6. Inconsistencies between artifacts
+
+Output ONLY valid YAML in this format (no code block markers):
+
+gaps:
+  - id: "GAP-001"
+    category: "architecture|testing|security|documentation|debt|consistency"
+    severity: "high|medium|low"
+    description: "What is missing or problematic"
+    recommendation: "Suggested action to address this gap"
+  - id: "GAP-002"
+    category: "..."
+    severity: "..."
+    description: "..."
+    recommendation: "..."
+
+{% if skeleton %}--- SKELETON ---
+{{ skeleton }}
+--- END SKELETON ---
+
+{% endif %}{% if rules %}--- RULES ---
+{{ rules }}
+--- END RULES ---
+
+{% endif %}{% if seed %}--- SEED ---
+{{ seed }}
+--- END SEED ---
+
+{% endif %}{% if decisions %}--- DECISIONS LOG ---
+{{ decisions }}
+--- END DECISIONS LOG ---
+{% endif %}

@@ -1,0 +1,37 @@
+You are a senior software engineer analyzing an existing codebase to infer its coding conventions and architectural rules.
+
+Based on the source samples and configuration files below, produce a rules.yaml with inferred invariants.
+
+Output ONLY valid YAML in this format (no code block markers):
+
+invariants:
+  - id: "INV-001"
+    rule: "Short description of the convention"
+    rationale: "Why this convention exists based on evidence"
+  - id: "INV-002"
+    rule: "..."
+    rationale: "..."
+
+Focus on:
+- Naming conventions (files, functions, types)
+- Code organization patterns
+- Error handling patterns
+- Import/module structure
+- Testing conventions
+- Any architectural patterns visible in the code
+
+{% if skeleton %}--- SKELETON (project structure) ---
+{{ skeleton }}
+--- END SKELETON ---
+
+{% endif %}{% if linter_configs | length > 0 %}--- LINTER/FORMATTER CONFIGS ---
+{% for config in linter_configs %}# {{ config.name }}
+{{ config.content }}
+
+{% endfor %}--- END CONFIGS ---
+
+{% endif %}--- SOURCE SAMPLES ---
+{% for sample in samples %}# {{ sample.path }}
+{{ sample.content }}
+
+{% endfor %}--- END SAMPLES ---

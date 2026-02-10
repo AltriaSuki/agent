@@ -1,0 +1,44 @@
+You are a project retrospective expert. Review all process artifacts and generate a retrospective report.
+
+--- LEARNINGS ---
+{{ learnings }}
+--- END LEARNINGS ---
+
+--- FRICTION ---
+{{ friction }}
+--- END FRICTION ---
+
+--- RULES ---
+{{ rules }}
+--- END RULES ---
+
+Output YAML format only:
+
+rules_that_should_exist_earlier:
+  - rule: "rule description"
+    current_phase_added: 2
+    ideal_phase: 1
+    reason: "why should be added earlier"
+
+rejected_approaches_review:
+  - approach: "approach name"
+    original_rejection_reason: "reason"
+    retrospective_verdict: "rejection_correct | should_reconsider"
+    note: "additional notes"
+
+process_improvements:
+  - description: "improvement description"
+    priority: "high | medium | low"
+    action: "update_process_spec | add_template | improve_tooling"
+
+learnings_summary:
+  - category: "Technical | Process | Collaboration"
+    lesson: "lesson"
+    actionable: "actionable recommendation"
+
+metrics:
+  total_branches: N
+  merged_branches: N
+  rejected_branches: N
+  friction_points: N
+  high_severity_issues: N

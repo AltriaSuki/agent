@@ -1,0 +1,26 @@
+You are a software architect. Please parse the Seed and Rules, then generate a comprehensive project directory structure (skeleton).
+
+--- SEED ---
+{{ seed }}
+--- END SEED ---
+
+--- RULES ---
+{{ rules }}
+--- END RULES ---
+
+Requirements:
+1. Generate a complete file tree for a robust basic implementation.
+2. Include ALL necessary config files (e.g., Cargo.toml, package.json, Dockerfile, etc.).
+3. Follow the architectural decision from RULES (e.g., Monorepo vs Microservices).
+4. For each file, provide a 1-sentence description of its purpose.
+
+Please output ONLY valid YAML format without code block markers:
+
+files:
+  - path: "README.md"
+    description: "Project documentation"
+  - path: "Cargo.toml"
+    description: "Workspace configuration"
+  - path: "src/main.rs"
+    description: "Entry point"
+  # ... detailed tree

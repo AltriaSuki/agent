@@ -1,0 +1,38 @@
+You are a software architect. Please read the seed and divergent proposals, then complete the following tasks:
+
+--- SEED ---
+{{ seed }}
+--- END SEED ---
+
+--- DIVERGE SUMMARY ---
+{{ diverge_summary }}
+--- END DIVERGE ---
+
+Tasks:
+1. Decision: Select/combine proposals, list reasons for eliminated proposals
+2. Extract rules from the selected approach
+
+Please output ONLY valid YAML format without code block markers:
+
+invariants:
+  - id: "INV-001"
+    rule: "Rule description"
+    rationale: "Why this rule"
+    added_in_phase: 2
+    frozen: false
+
+conventions:
+  - id: "CONV-001"
+    rule: "Convention description"
+    rationale: "Why this convention"
+
+conflict_resolution:
+  policy: "human_final_say"
+
+rejected_approaches:
+  - name: "Rejected proposal name"
+    reason: "Reason for rejection"
+
+selected_approach:
+  name: "Selected proposal name"
+  rationale: "Reason for selection"

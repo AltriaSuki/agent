@@ -55,7 +55,7 @@ settings:
     // 4. Initialize State
     let state = ProcessState::default(); 
     state.save().context("Failed to save initial state")?;
-    println!("{} Initialized state to {}", "✔".green(), "Seed");
+    println!("{} Initialized state to Seed", "✔".green());
     
     println!("{}", "Project initialized successfully! ".green().bold());
     println!("Next: Edit {} and run {}", ".process/seed.yaml".bold(), "process seed-validate".bold());

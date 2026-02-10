@@ -45,7 +45,7 @@ impl AiRegistry {
             }
         }
         
-        candidates.sort_by(|a, b| b.priority().cmp(&a.priority()));
+        candidates.sort_by_key(|b| std::cmp::Reverse(b.priority()));
         
         candidates.first()
             .map(|p| Arc::clone(p))

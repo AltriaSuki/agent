@@ -426,21 +426,21 @@ process adopt gap-analysis       # 只运行分析
 - [x] **Manual Provider** — copy-paste 兜底, priority 1
 - [x] **`ai-config set-provider` 子命令** — 切换默认 Provider
 
-### Milestone 6: Generators & Checks（预计 3-5 天）
+### Milestone 6: Generators & Checks ✅ DONE (2026-02-10)
 
 > 实现设计文档中规划的自动化工具链。
 
 #### Generators
-- [ ] `GitHooksGenerator` — 生成 pre-commit / pre-push（参考 `auto/1e-project/githooks/`）
-- [ ] `CiCdGenerator` — GitHub Actions / GitLab CI（参考 `auto/1e-project/github-workflows/`）
-- [ ] `MakefileGenerator` — 标准 make targets
-- [ ] `IdeGenerator` — VS Code settings/tasks/extensions
+- [x] `GitHooksGenerator` — 生成 pre-commit / pre-push（自动检测 Cargo/npm/Python）
+- [x] `CiCdGenerator` — GitHub Actions（Rust/Node.js/Generic 模板）
+- [x] `MakefileGenerator` — 标准 make targets
+- [x] `IdeGenerator` — VS Code settings/extensions
 
 #### Checks
-- [ ] `SensitiveInfoCheck` — 正则扫描密码/密钥/证书
-- [ ] `TodoCheck` — TODO/FIXME 检测
-- [ ] `LintCheck` — 调用 cargo clippy / eslint 等
-- [ ] `TestCheck` — 调用 cargo test / pytest 等
+- [x] `SensitiveInfoCheck` — 正则扫描 API key/密码/证书
+- [x] `TodoCheck` — TODO/FIXME/HACK/XXX 检测
+- [x] `LintCheck` — 调用 cargo clippy / eslint / ruff
+- [x] `TestCheck` — 调用 cargo test / npm test / pytest
 
 ### Milestone 7: Pass Engine 核心（预计 4-6 天）⭐⭐ 架构转型
 

@@ -111,6 +111,14 @@ pub enum Commands {
 
     /// Phase 7: Mark project as complete
     Done,
+
+    /// Generate project automation files
+    #[command(subcommand)]
+    Generate(GenerateCommands),
+
+    /// Run automated checks
+    #[command(subcommand)]
+    Check(CheckCommands),
 }
 
 #[derive(Subcommand)]
@@ -182,4 +190,32 @@ pub enum AdoptCommands {
         #[arg(short, long, default_value = "200")]
         max_commits: usize,
     },
+}
+
+#[derive(Subcommand)]
+pub enum GenerateCommands {
+    /// Generate git hooks (pre-commit, pre-push)
+    GitHooks,
+    /// Generate CI/CD pipeline (GitHub Actions)
+    Cicd,
+    /// Generate Makefile with standard targets
+    Makefile,
+    /// Generate IDE configuration (VS Code)
+    Ide,
+    /// Run all generators
+    All,
+}
+
+#[derive(Subcommand)]
+pub enum CheckCommands {
+    /// Scan for sensitive information
+    Sensitive,
+    /// Scan for TODO/FIXME markers
+    Todo,
+    /// Run project linter
+    Lint,
+    /// Run project tests
+    Test,
+    /// Run all checks
+    All,
 }

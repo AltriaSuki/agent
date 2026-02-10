@@ -64,6 +64,8 @@ async fn main() -> Result<()> {
         }
         Commands::Postmortem => commands::postmortem::execute().await?,
         Commands::Done => commands::done::execute()?,
+        Commands::Generate(cmd) => commands::generate::execute(&cmd)?,
+        Commands::Check(cmd) => commands::check::execute(&cmd)?,
     }
 
     Ok(())

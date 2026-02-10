@@ -1337,6 +1337,7 @@ dependencies = [
  "async-trait",
  "process-config",
  "process-core",
+ "regex",
  "serde",
 ]
 

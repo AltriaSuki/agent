@@ -28,3 +28,5 @@ pub mod adopt_infer_conventions;
 pub mod adopt_scan_git_history;
 pub mod adopt_gap_analysis;
 pub mod adopt_all;
+pub mod generate;
+pub mod check;
